@@ -1,0 +1,8 @@
+@import './styles/global.css';
+@import './styles/layout.css';
+@import './styles/shared.css';
+@import './styles/weekly.css';
+@import './styles/daily.css';
+@import './styles/monthly.css';
+@import './styles/goals.css';
+@import './styles/settings.css';

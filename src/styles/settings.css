@@ -1,0 +1,39 @@
+.data-settings {
+  padding: 24px 32px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.data-settings-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 24px;
+}
+
+.data-settings-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.data-settings-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+}
+
+.data-settings-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.data-settings-actions {
+  display: flex;
+  gap: 8px;
+}

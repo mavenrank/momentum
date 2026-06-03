@@ -1,0 +1,109 @@
+.monthly-view {
+  padding: 24px 32px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.monthly-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.monthly-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.monthly-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.monthly-nav-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.monthly-nav-btn:hover {
+  background: var(--bg-secondary);
+}
+
+.monthly-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-heading);
+  min-width: 180px;
+  text-align: center;
+}
+
+.monthly-calendar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.monthly-calendar-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.monthly-calendar-header-cell {
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.monthly-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.monthly-calendar-cell {
+  min-height: 90px;
+  padding: 6px 8px;
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+}
+
+.monthly-calendar-cell:nth-child(7n) {
+  border-right: none;
+}
+
+.monthly-calendar-cell.other-month {
+  background: var(--bg-secondary);
+}
+
+.monthly-calendar-cell.today {
+  background: var(--blue-light);
+}
+
+.monthly-calendar-day {
+  font-weight: 600;
+  color: var(--text-heading);
+  margin-bottom: 4px;
+}
+
+.monthly-calendar-cell.other-month .monthly-calendar-day {
+  color: var(--text-secondary);
+}

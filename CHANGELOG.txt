@@ -1,0 +1,18 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] — 2026-06-03
+### Added
+- Project scaffold with React 19, Vite 8, TypeScript 6, Bun
+- Weekly planner spread (3-column layout with priorities, todo, notes, habit tracker, day schedule grid)
+- Daily view with tasks, habit check-in, and journal entry
+- Monthly calendar view with task previews
+- Goals & Habits management page with CRUD
+- Data persistence via localStorage with Zustand
+- JSON export/import for cross-device data portability
+- Sidebar navigation between all views
+- Geist Variable font, lucide-react icons
+- Per-component CSS files (no monolithic stylesheets)
