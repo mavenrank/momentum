@@ -1,0 +1,37 @@
+# Changelog
+
+All notable changes to Momentum will be documented in this file.
+
+The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
+
+## [0.3.0] - 2026-06-06
+
+### Added
+- Added workflow task statuses for Inbox, Planned, In Progress, Waiting, and Done.
+- Added P1-P4 task priorities.
+
+### Changed
+- Redesigned Daily view as an execution surface instead of another planning form.
+- Reworked Weekly view as a command center with critical goals, waiting items, and carry-forward items.
+- Changed Monthly view to show completion metrics instead of task text previews.
+- Removed filler helper copy from primary view headers.
+
+## [0.2.0] - 2026-06-04
+
+### Added
+- Added a Monthly view with compact daily task previews.
+- Added categorized daily tasks for top priority, to-do, low priority, and follow-up.
+
+### Changed
+- Redesigned Daily view around a dynamic task composer and animated completion state.
+- Reworked Weekly view into a paper-planner-inspired layout with progressive fields.
+- Removed Journal from Daily view and renamed the standalone Notes mode to Journal.
+- Removed wins/blockers from the daily surface.
+
+## [0.1.0] - 2026-06-03
+
+### Added
+- Created the first Momentum React, TypeScript, and Vite application.
+- Added Daily, Weekly, Habits, Notes, and Data views.
+- Added local browser persistence with portable JSON export and import.
+- Added project planning, roadmap, versioning, and commit convention documents.

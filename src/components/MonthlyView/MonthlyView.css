@@ -1,0 +1,125 @@
+.month-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.month-title-row span {
+  color: #4c463f;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.month-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.month-panel {
+  padding: 14px;
+}
+
+.month-week-labels {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  color: #70685e;
+  font-weight: 800;
+  font-size: 0.78rem;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.month-week-labels span {
+  padding: 0 8px;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid #ddd2c2;
+  border-left: 1px solid #ddd2c2;
+}
+
+.month-day {
+  min-height: 118px;
+  border: 0;
+  border-right: 1px solid #ddd2c2;
+  border-bottom: 1px solid #ddd2c2;
+  background: #fffdf8;
+  color: #202124;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  padding: 8px;
+  text-align: left;
+}
+
+.month-day.active {
+  background: #e5f0ec;
+  box-shadow: inset 0 0 0 2px #287c76;
+}
+
+.month-day.muted {
+  background: #f6f2ea;
+  color: #8c857b;
+}
+
+.month-date-number {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  color: #70685e;
+}
+
+.month-day-metrics {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.month-day-metrics strong,
+.month-day-metrics span,
+.month-day-metrics small,
+.month-day-metrics em {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-day-metrics strong {
+  color: #287c76;
+  font-size: 1.28rem;
+}
+
+.month-day-metrics span,
+.month-day-metrics small {
+  color: #4c463f;
+  font-size: 0.78rem;
+}
+
+.month-day-metrics em {
+  color: #8e3f22;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .month-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .month-week-labels {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .month-grid {
+    grid-template-columns: 1fr;
+  }
+}
