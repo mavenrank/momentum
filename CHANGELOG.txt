@@ -4,6 +4,47 @@ All notable changes to Momentum will be documented in this file.
 
 The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
 
+## [0.4.0] - 2026-08-03
+
+### Added
+- Added Quick Add: one input parses natural language into structured tasks, with
+  inline token highlighting and a live preview of the parsed fields.
+- Added area autocomplete on `#`, with Tab completion and on-the-fly creation.
+- Added a Settings section for managing areas: add, rename, recolour, archive,
+  and restore the defaults.
+- Added a Calendar section with a continuously scrolling month grid, viewport-
+  sized rows, month-boundary snapping, and a floating month/year heading.
+- Added stable task IDs (`T-YYYYMMDD-NNNN`) and a task relationship graph.
+- Added an optional one-line `summary` and an optional long-form `description`
+  per task, edited in a task detail dialog.
+- Added a visible completion checkbox on every task card.
+- Added follow-up prompting on completion, with presets.
+- Added `@`-mention task references in the Journal, tracked in `taskReferences`.
+- Added a Logseq markdown export, one page per task.
+- Added dark mode with a theme toggle.
+- Added drag-and-drop day assignment in the Week view, plus `Ctrl+Shift+1`–`7`.
+- Added automatic collection of tasks left unfinished from the day before
+  yesterday or earlier back into the Pool.
+- Added a parser test suite (`bun test`) and a combined `bun run check`.
+
+### Changed
+- Moved persistence from localStorage to IndexedDB via Dexie, with debounced
+  writes, cross-tab sync, and quota-error surfacing. localStorage now holds only
+  the theme preference.
+- Migrated the data model to v2: statuses are Pool/Planned/Scheduled/Doing/
+  Waiting/Done and priorities are Must/Should/Could/Want. v1 data migrates on
+  first launch and on import.
+- Replaced plain CSS with Tailwind CSS v4 and source-owned shadcn/ui components.
+- Replaced the persistent sidebar with a compact top navigation bar.
+- Rebuilt the Today view as a three-day board that looks back only while
+  yesterday still has unfinished work, with the Pool as an adjacent rail.
+- Rebuilt the Week view around unscheduled and pool panels above a seven-day strip.
+
+### Removed
+- Removed the task composer, per-task status dropdowns, and status sections.
+- Removed the `topFocus` field and task categories.
+- Removed completion percentages and counts from the calendar.
+
 ## [0.3.0] - 2026-06-06
 
 ### Added

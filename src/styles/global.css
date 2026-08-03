@@ -1,3 +1,10 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------- fonts -- */
+
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -34,149 +41,308 @@
     url("../assets/fonts/GeistMono-Italic-Variable.woff2") format("woff2");
 }
 
-* {
-  box-sizing: border-box;
+/* --------------------------------------------------------- theme tokens -- */
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.99 0.005 85);
+  --foreground: oklch(0.24 0.008 60);
+  --card: oklch(1 0.004 85);
+  --card-foreground: oklch(0.24 0.008 60);
+  --popover: oklch(1 0.004 85);
+  --popover-foreground: oklch(0.24 0.008 60);
+  --primary: oklch(0.52 0.07 190);
+  --primary-foreground: oklch(0.99 0.005 85);
+  --secondary: oklch(0.95 0.008 85);
+  --secondary-foreground: oklch(0.28 0.008 60);
+  --muted: oklch(0.95 0.008 85);
+  --muted-foreground: oklch(0.52 0.012 65);
+  --accent: oklch(0.94 0.012 85);
+  --accent-foreground: oklch(0.28 0.008 60);
+  --destructive: oklch(0.58 0.19 25);
+  --destructive-foreground: oklch(0.99 0.005 85);
+  --border: oklch(0.89 0.01 80);
+  --input: oklch(0.89 0.01 80);
+  --ring: oklch(0.52 0.07 190);
+
+  /* Area colors — data-driven, overridden in dark mode */
+  --area-college: #287c76;
+  --area-work: #a45c40;
+  --area-projects: #4a7c9e;
+  --area-health: #5b8c5a;
+  --area-personal: #8e6b8e;
+  --area-finance: #c49a3c;
+  --area-relationships: #c06060;
+  --area-default: #7a7268;
+
+  /* Priority colors */
+  --priority-must: #c0392b;
+  --priority-should: #cc7a29;
+  --priority-could: #3d7ab8;
+  --priority-want: #7a7268;
+
+  /* NLP token highlight colors */
+  --nlp-area: #2f7d55;
+  --nlp-priority: #c2701c;
+  --nlp-date: #3068b5;
+  --nlp-time: #7a4bb5;
 }
 
-body {
-  margin: 0;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+.dark {
+  --background: oklch(0.18 0.006 70);
+  --foreground: oklch(0.94 0.006 85);
+  --card: oklch(0.22 0.007 70);
+  --card-foreground: oklch(0.94 0.006 85);
+  --popover: oklch(0.22 0.007 70);
+  --popover-foreground: oklch(0.94 0.006 85);
+  --primary: oklch(0.68 0.09 190);
+  --primary-foreground: oklch(0.18 0.006 70);
+  --secondary: oklch(0.27 0.008 70);
+  --secondary-foreground: oklch(0.94 0.006 85);
+  --muted: oklch(0.27 0.008 70);
+  --muted-foreground: oklch(0.68 0.011 75);
+  --accent: oklch(0.3 0.009 70);
+  --accent-foreground: oklch(0.94 0.006 85);
+  --destructive: oklch(0.64 0.18 25);
+  --destructive-foreground: oklch(0.98 0.005 85);
+  --border: oklch(0.32 0.009 70);
+  --input: oklch(0.34 0.009 70);
+  --ring: oklch(0.68 0.09 190);
+
+  --area-college: #3da89f;
+  --area-work: #c47558;
+  --area-projects: #6a9bbe;
+  --area-health: #75a674;
+  --area-personal: #a68ba6;
+  --area-finance: #d4af4f;
+  --area-relationships: #d47575;
+  --area-default: #9c9288;
+
+  --priority-must: #e06a5c;
+  --priority-should: #e0993f;
+  --priority-could: #63a3e0;
+  --priority-want: #9c9288;
+
+  --nlp-area: #5fbd85;
+  --nlp-priority: #e0a04f;
+  --nlp-date: #6aa3e8;
+  --nlp-time: #ab86e0;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-area-college: var(--area-college);
+  --color-area-work: var(--area-work);
+  --color-area-projects: var(--area-projects);
+  --color-area-health: var(--area-health);
+  --color-area-personal: var(--area-personal);
+  --color-area-finance: var(--area-finance);
+  --color-area-relationships: var(--area-relationships);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-button:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-}
-
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  border-color: #287c76;
-  box-shadow: 0 0 0 3px rgba(40, 124, 118, 0.18);
-}
-
-button {
-  cursor: pointer;
-}
-
-textarea {
-  resize: vertical;
-}
-
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 14px;
-}
-
-.view-header h2 {
-  margin: 0;
-  font-size: clamp(1.7rem, 3vw, 2.4rem);
-}
-
-.view-header p {
-  margin: 6px 0 0;
-  color: #70685e;
-}
-
-.panel-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 16px;
-}
-
-.planner-panel {
-  background: #fffdf8;
-  border: 1px solid #ddd2c2;
-  border-radius: 8px;
-  padding: 18px;
-  box-shadow: 0 12px 32px rgba(32, 33, 36, 0.06);
-}
-
-.planner-panel h3 {
-  margin: 0 0 14px;
-  font-size: 1rem;
-}
-
-.field-stack {
-  display: grid;
-  gap: 12px;
-}
-
-.field-label {
-  display: grid;
-  gap: 6px;
-  color: #4c463f;
-  font-size: 0.92rem;
-  font-weight: 650;
-}
-
-.text-input,
-.text-area,
-.select-input {
-  width: 100%;
-  border: 1px solid #cfc4b4;
-  border-radius: 6px;
-  background: #fffaf1;
-  color: #202124;
-  padding: 10px 11px;
-}
-
-.text-area {
-  min-height: 104px;
-  line-height: 1.45;
-}
-
-.primary-button,
-.ghost-button,
-.icon-button {
-  border: 1px solid #202124;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 38px;
-}
-
-.primary-button {
-  background: #202124;
-  color: #fffaf1;
-  padding: 0 14px;
-}
-
-.ghost-button {
-  background: transparent;
-  color: #202124;
-  padding: 0 12px;
-}
-
-.icon-button {
-  width: 38px;
-  background: transparent;
-  color: #202124;
-}
-
-@media (max-width: 720px) {
-  .view-header {
-    display: grid;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
 
-  .panel-grid {
-    grid-template-columns: 1fr;
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    margin: 0;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+/* --------------------------------------------------- NLP token highlight -- */
+
+@layer components {
+  .nlp-token {
+    transition: color 180ms ease, background-color 180ms ease;
+    border-radius: 3px;
+  }
+
+  .nlp-area {
+    color: var(--nlp-area);
+    font-weight: 600;
+  }
+
+  .nlp-priority {
+    color: var(--nlp-priority);
+    font-weight: 600;
+  }
+
+  .nlp-date {
+    color: var(--nlp-date);
+    font-weight: 600;
+  }
+
+  .nlp-time {
+    color: var(--nlp-time);
+    font-weight: 600;
+  }
+}
+
+/* ------------------------------------------------------------ animation -- */
+
+@keyframes momentum-slide-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(3%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes momentum-slide-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-3%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-from-right {
+  animation: momentum-slide-from-right 250ms ease-out;
+}
+
+.slide-from-left {
+  animation: momentum-slide-from-left 250ms ease-out;
+}
+
+/* Rolling label: the outgoing value leaves the way the new one arrives, so the
+   month and year read like an odometer rather than a hard swap. */
+@keyframes momentum-roll-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-70%);
+  }
+}
+
+@keyframes momentum-roll-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(70%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes momentum-roll-out-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(70%);
+  }
+}
+
+@keyframes momentum-roll-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-70%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.roll-out-up {
+  animation: momentum-roll-out-up 260ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.roll-in-up {
+  animation: momentum-roll-in-up 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.roll-out-down {
+  animation: momentum-roll-out-down 260ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.roll-in-down {
+  animation: momentum-roll-in-down 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Whole-view entrance when switching between top-level sections. */
+@keyframes momentum-view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-enter {
+  animation: momentum-view-enter 220ms ease-out;
+}
+
+.task-complete-fade {
+  transition: opacity 180ms ease, text-decoration-color 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-from-right,
+  .slide-from-left,
+  .view-enter,
+  .roll-out-up,
+  .roll-in-up,
+  .roll-out-down,
+  .roll-in-down {
+    animation: none;
   }
 }
