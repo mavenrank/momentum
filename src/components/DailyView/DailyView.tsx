@@ -90,7 +90,7 @@ export function DailyView({ data, setData, selectedDate, setSelectedDate }: Dail
               value={draftStatus}
               onChange={(event) => setDraftStatus(event.target.value as TaskStatus)}
             >
-              <option value="inbox">Inbox</option>
+              <option value="pool">Pool</option>
               <option value="planned">Planned</option>
               <option value="inProgress">In Progress</option>
               <option value="waiting">Waiting</option>
@@ -141,8 +141,8 @@ export function DailyView({ data, setData, selectedDate, setSelectedDate }: Dail
               removeTask={removeTask}
             />
             <TaskSection
-              tasks={entry.tasks.filter((task) => task.status === "inbox")}
-              title="Inbox"
+              tasks={entry.tasks.filter((task) => task.status === "pool")}
+              title="Pool"
               updateTask={updateTask}
               removeTask={removeTask}
             />
@@ -210,7 +210,7 @@ function TaskSection({ title, tasks, updateTask, removeTask }: TaskSectionProps)
                 })
               }
             >
-              <option value="inbox">Inbox</option>
+              <option value="pool">Pool</option>
               <option value="planned">Planned</option>
               <option value="inProgress">In Progress</option>
               <option value="waiting">Waiting</option>

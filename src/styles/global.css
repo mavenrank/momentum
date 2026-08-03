@@ -1,3 +1,39 @@
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/InterVariable.woff2") format("woff2-variations"),
+    url("../assets/fonts/InterVariable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/InterVariable-Italic.woff2") format("woff2-variations"),
+    url("../assets/fonts/InterVariable-Italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/GeistMono-Variable.woff2") format("woff2-variations"),
+    url("../assets/fonts/GeistMono-Variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/GeistMono-Italic-Variable.woff2") format("woff2-variations"),
+    url("../assets/fonts/GeistMono-Italic-Variable.woff2") format("woff2");
+}
+
 * {
   box-sizing: border-box;
 }

@@ -7,3 +7,6 @@ Thumbs.db
 .env.local
 .vite
 *.log
+
+# Obsidian local workspace state
+.obsidian/

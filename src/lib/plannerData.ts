@@ -68,9 +68,11 @@ function migrateTask(task: DailyTask): DailyTask {
   const status =
     legacy.status === "open"
       ? "planned"
-      : legacy.status === "done"
-        ? "done"
-        : legacy.status ?? "planned";
+      : legacy.status === "inbox"
+        ? "pool"
+        : legacy.status === "done"
+          ? "done"
+          : legacy.status ?? "planned";
 
   return {
     ...task,

@@ -96,7 +96,7 @@
 
 .task-number {
   color: #70685e;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.78rem;
   letter-spacing: 0;
 }
@@ -110,7 +110,7 @@
 .task-priority-badge {
   width: fit-content;
   color: #70685e;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.68rem;
   text-transform: uppercase;
   border-radius: 4px;

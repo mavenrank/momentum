@@ -1,6 +1,6 @@
 export type ViewMode = "daily" | "weekly" | "monthly" | "habits" | "journal" | "data";
 
-export type TaskStatus = "inbox" | "planned" | "inProgress" | "waiting" | "done";
+export type TaskStatus = "pool" | "planned" | "inProgress" | "waiting" | "done";
 export type TaskPriority = "P1" | "P2" | "P3" | "P4";
 export type TaskCategory = "top" | "todo" | "low" | "followUp";
 

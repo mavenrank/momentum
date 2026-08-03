@@ -101,7 +101,7 @@
 
 .digest-list strong {
   color: #70685e;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.72rem;
 }
 
@@ -109,7 +109,7 @@
   border-radius: 4px;
   background: #efe7d8;
   color: #70685e;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.68rem;
   padding: 1px 5px;
 }
