@@ -1,6 +1,6 @@
 import { seedAreas, sortAreas } from "./areas";
 import { toDateKey } from "./date";
-import { generateTaskId, parseTaskIdCounter } from "./taskId";
+import { generateTaskId, getDeviceTag, parseTaskIdCounter } from "./taskId";
 import { CURRENT_VERSION, mapPriority, mapStatus, runMigrations } from "./persistence/migrations";
 import type {
   Area,
@@ -189,7 +189,7 @@ export function addTask(data: PlannerData, input: NewTaskInput): PlannerData {
   const now = new Date();
   const nowIso = now.toISOString();
   const homeDate = toDateKey(now);
-  const id = generateTaskId(homeDate, data.nextTaskId);
+  const id = generateTaskId(homeDate, data.nextTaskId, getDeviceTag());
 
   const task: DailyTask = {
     id,
@@ -318,6 +318,20 @@ export function scheduleTask(
   return updateTask(data, taskId, {
     scheduledDate: date,
     status: task.status === "done" || task.status === "doing" ? task.status : "scheduled",
+  });
+}
+
+/**
+ * Undoes a scheduling decision in one step: the date, the time and the all-day
+ * marker all go, and the task drops back into the untriaged Pool. This is the
+ * opposite of `scheduleTask`, which only ever clears the day.
+ */
+export function returnTaskToPool(data: PlannerData, taskId: string): PlannerData {
+  return updateTask(data, taskId, {
+    scheduledDate: undefined,
+    timeOfDay: undefined,
+    allDay: undefined,
+    status: "pool",
   });
 }
 
