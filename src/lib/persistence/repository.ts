@@ -12,6 +12,7 @@ import {
   type WeeklyRow,
 } from "./db";
 import { runMigrations } from "./migrations";
+import { createTauriRepository, isTauriShell } from "./tauriRepository";
 import { diffRecords, indexBy as index } from "./recordDiff";
 import { createEmptyData, normalizePlannerData, taskHomeDate } from "../plannerData";
 import { createDeviceTag, setDeviceTag } from "../taskId";
@@ -409,4 +410,15 @@ export function createRepository(): Repository {
   };
 }
 
-export const repository = createRepository();
+/**
+ * The backend is chosen once, by asking where we are running.
+ *
+ * Nothing above this line knows which one it got. That was the point of putting
+ * the `Repository` interface here in the first place: the Dexie implementation
+ * already stored tasks as rows, diffed before writing and stamped `updatedAt`,
+ * so a second backend could be added without the app noticing. This is that
+ * second backend, and the app did not have to change.
+ */
+export const repository: Repository = isTauriShell()
+  ? createTauriRepository()
+  : createRepository();
