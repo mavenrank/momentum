@@ -10,3 +10,11 @@ Thumbs.db
 
 # Obsidian local workspace state
 .obsidian/
+
+# Tauri shell (experiment/tauri-shell)
+# Rust build cache: several GB, entirely reproducible.
+src-tauri/target/
+# Generated bundle scaffolding.
+src-tauri/gen/
+src-tauri/WixTools/
+src-tauri/NsisTools/
