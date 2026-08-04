@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/toast";
 import { BackupFolderCard } from "./BackupFolderCard";
+import { DataFolderCard } from "./DataFolderCard";
 import { getAreaColor } from "@/lib/areas";
 import { snapshotFilename } from "@/lib/persistence/folderBackup";
+import { isTauriShell } from "@/lib/persistence/tauriRepository";
 import {
   buildLogseqBundle,
   exportToLogseqDirectory,
@@ -37,6 +39,10 @@ export function DataView({ data, replaceData }: DataViewProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [message, setMessage] = React.useState("");
   const { toast } = useToast();
+
+  // In the shell the store *is* a folder, so the browser's snapshot-into-a-
+  // folder card would be offering a worse version of what already happens.
+  const inShell = React.useMemo(() => isTauriShell(), []);
 
   const tasks = React.useMemo(() => allTasks(data), [data]);
 
@@ -125,18 +131,22 @@ export function DataView({ data, replaceData }: DataViewProps) {
       <header>
         <h2 className="text-2xl font-semibold tracking-tight">Data</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Schema v{data.version} · stored in IndexedDB
+          Schema v{data.version} · stored {inShell ? "in a folder on disk" : "in IndexedDB"}
         </p>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <BackupFolderCard
-          data={data}
-          replaceData={replaceData}
-          onDownloadSnapshot={() =>
-            download(JSON.stringify(data, null, 2), snapshotFilename(), "application/json")
-          }
-        />
+        {inShell ? (
+          <DataFolderCard data={data} />
+        ) : (
+          <BackupFolderCard
+            data={data}
+            replaceData={replaceData}
+            onDownloadSnapshot={() =>
+              download(JSON.stringify(data, null, 2), snapshotFilename(), "application/json")
+            }
+          />
+        )}
 
         <Card>
           <CardHeader className="pb-2">
