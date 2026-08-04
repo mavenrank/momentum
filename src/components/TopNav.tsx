@@ -7,6 +7,7 @@ import {
   NotebookPen,
   Settings,
   Sun,
+  TriangleAlert,
 } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -28,20 +29,29 @@ interface TopNavProps {
   onChange: (mode: ViewMode) => void;
   /** Rendered on the right of the bar — the active view's own controls. */
   actions?: React.ReactNode;
+  /** Set while storage is failing; surfaces as a warning beside the theme toggle. */
+  storageError?: string | null;
+  onOpenStorageError?: () => void;
 }
 
 /**
  * A single 44px bar replaces the old sidebar: the nav costs one row of vertical
  * space instead of a permanent column, and collapses to icons when narrow.
  */
-export function TopNav({ mode, onChange, actions }: TopNavProps) {
+export function TopNav({
+  mode,
+  onChange,
+  actions,
+  storageError,
+  onOpenStorageError,
+}: TopNavProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-40 flex h-11 shrink-0 items-center gap-2 border-b bg-background/85 px-2 backdrop-blur-md">
       <span
         aria-hidden
-        className="grid size-6 shrink-0 place-items-center rounded bg-primary text-[11px] font-bold text-primary-foreground"
+        className="grid size-6 shrink-0 place-items-center rounded bg-primary text-xs font-bold text-primary-foreground"
       >
         M
       </span>
@@ -80,6 +90,27 @@ export function TopNav({ mode, onChange, actions }: TopNavProps) {
       </nav>
 
       {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
+
+      {/* A failing save is worth interrupting for once, not on every keystroke.
+          It lives here as a standing warning: impossible to miss, costs no
+          layout, and clicking it explains what actually went wrong. */}
+      {storageError ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Storage problem — click for details"
+              onClick={onOpenStorageError}
+              className="shrink-0 animate-pulse rounded-md p-1.5 text-[var(--priority-should)] transition-colors hover:bg-[var(--priority-should)]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <TriangleAlert className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-xs">
+            {storageError}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
 
       <Tooltip>
         <TooltipTrigger asChild>

@@ -1,7 +1,5 @@
 import * as React from "react";
-import { X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { TopNav } from "./TopNav";
 import { CalendarView } from "./CalendarView/CalendarView";
 import { DataView } from "./DataView/DataView";
@@ -50,7 +48,12 @@ export function AppShell() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <TopNav mode={mode} onChange={setMode} />
+      <TopNav
+        mode={mode}
+        onChange={setMode}
+        storageError={planner.storageError}
+        onOpenStorageError={() => setMode("data")}
+      />
 
       <main
         className={cn(
@@ -59,23 +62,6 @@ export function AppShell() {
           mode === "calendar" ? "overflow-hidden" : "overflow-y-auto p-3",
         )}
       >
-        {planner.storageError ? (
-          <div
-            role="alert"
-            className="mb-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
-          >
-            <span className="flex-1">{planner.storageError}</span>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={planner.dismissStorageError}
-              title="Dismiss"
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        ) : null}
-
         {planner.loading ? (
           <p className="m-auto text-sm text-muted-foreground">Loading your planner…</p>
         ) : (
