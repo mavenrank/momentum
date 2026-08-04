@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlignLeft, Check } from "lucide-react";
+import { AlignLeft, Check, CornerUpLeft, Repeat2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTimeOfDay } from "@/lib/date";
 import { getAreaColor } from "@/lib/areas";
@@ -15,6 +15,64 @@ const PRIORITY_STYLE: Record<TaskPriority, string> = {
   want: "text-[var(--priority-want)] border-[var(--priority-want)]/40 bg-[var(--priority-want)]/10",
 };
 
+/**
+ * Undoing a schedule is destructive enough to want a beat of hesitation, but a
+ * modal for it would be heavier than the action deserves. The button asks
+ * "Sure?" in place instead, and gives up on its own if the answer never comes.
+ */
+const CONFIRM_TIMEOUT_MS = 3000;
+
+function PullToPoolButton({ onConfirm }: { onConfirm: () => void }) {
+  const [confirming, setConfirming] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!confirming) {
+      return;
+    }
+    const timer = window.setTimeout(() => setConfirming(false), CONFIRM_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        title="Pull back to the Pool — clears the date and time"
+        aria-label="Pull back to the Pool"
+        onClick={(event) => {
+          event.stopPropagation();
+          setConfirming(true);
+        }}
+        onDoubleClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+        className="flex items-center gap-1 rounded px-1 py-0.5 text-[0.6875rem] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <CornerUpLeft className="size-3" />
+        Pool
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      title="Confirm — clears the date and time"
+      onClick={(event) => {
+        event.stopPropagation();
+        setConfirming(false);
+        onConfirm();
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      onBlur={() => setConfirming(false)}
+      autoFocus
+      className="rounded border border-destructive/50 bg-destructive/10 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-destructive transition-colors hover:bg-destructive/20"
+    >
+      Sure?
+    </button>
+  );
+}
+
 export interface TaskCardProps extends React.HTMLAttributes<HTMLDivElement> {
   task: DailyTask;
   areas: Area[];
@@ -27,6 +85,10 @@ export interface TaskCardProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Inline nudge rendered under the card body — see TaskSuggestion. */
   suggestion?: React.ReactNode;
   onToggleDone?: () => void;
+  /** Opens the follow-up composer. Shown bottom-right on hover. */
+  onFollowUp?: () => void;
+  /** Clears the date and time and sends the task back to the Pool. */
+  onReturnToPool?: () => void;
 }
 
 export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard(
@@ -40,6 +102,8 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
     onCancelEdit,
     suggestion,
     onToggleDone,
+    onFollowUp,
+    onReturnToPool,
     className,
     ...props
   },
@@ -62,6 +126,10 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
   const done = task.status === "done";
   const dotColor = getAreaColor(areas, task.area);
   const time = formatTimeOfDay(task.timeOfDay);
+  // Nothing to pull back when the task is already untriaged and undated.
+  const showPullToPool =
+    Boolean(onReturnToPool) && (Boolean(task.scheduledDate) || task.status !== "pool");
+  const hasHoverActions = !editing && (Boolean(onFollowUp) || showPullToPool);
 
   return (
     <div
@@ -73,7 +141,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
       // Full title on hover, since the rendered line is truncated.
       title={[task.title, task.summary].filter(Boolean).join(" — ")}
       className={cn(
-        "task-complete-fade group flex w-full items-start gap-2 rounded-md border bg-card text-left shadow-sm transition-all duration-150 focus:outline-none",
+        "task-complete-fade group relative flex w-full items-start gap-2 rounded-md border bg-card text-left shadow-sm transition-all duration-150 focus:outline-none",
         compact ? "px-2 py-1" : "px-2.5 py-2",
         selected
           ? "border-ring ring-2 ring-ring/40"
@@ -155,10 +223,10 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
                 />
               ) : null}
               {time ? (
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{time}</span>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">{time}</span>
               ) : null}
               {task.allDay ? (
-                <span className="shrink-0 rounded bg-muted px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="shrink-0 rounded bg-muted px-1 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
                   All day
                 </span>
               ) : null}
@@ -177,7 +245,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
             {task.priority ? (
               <span
                 className={cn(
-                  "rounded border px-1 py-px text-[10px] font-semibold uppercase tracking-wide",
+                  "rounded border px-1 py-px text-[0.6875rem] font-semibold uppercase tracking-wide",
                   PRIORITY_STYLE[task.priority],
                 )}
               >
@@ -185,10 +253,10 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
               </span>
             ) : null}
             {task.area && !compact ? (
-              <span className="text-[10px] text-muted-foreground">#{task.area.toLowerCase()}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">#{task.area.toLowerCase()}</span>
             ) : null}
             {task.status === "waiting" ? (
-              <span className="rounded border border-border px-1 py-px text-[10px] uppercase tracking-wide text-muted-foreground">
+              <span className="rounded border border-border px-1 py-px text-[0.6875rem] uppercase tracking-wide text-muted-foreground">
                 Waiting
               </span>
             ) : null}
@@ -197,6 +265,38 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
 
         {!editing && suggestion ? suggestion : null}
       </div>
+
+      {/* Floated rather than laid out: the row appears on hover without adding
+          height, so a card never resizes under the pointer. */}
+      {hasHoverActions ? (
+        <div
+          className={cn(
+            "absolute bottom-1 right-1 flex items-center gap-0.5 rounded-md border bg-card/95 px-0.5 py-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity",
+            "group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100",
+          )}
+        >
+          {onFollowUp ? (
+            <button
+              type="button"
+              title="Schedule a follow-up to this task"
+              onClick={(event) => {
+                event.stopPropagation();
+                onFollowUp();
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              className="flex items-center gap-1 rounded px-1 py-0.5 text-[0.6875rem] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Repeat2 className="size-3" />
+              Follow up
+            </button>
+          ) : null}
+
+          {showPullToPool && onReturnToPool ? (
+            <PullToPoolButton onConfirm={onReturnToPool} />
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 });

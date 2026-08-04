@@ -96,11 +96,17 @@ export function TaskDetailDialog({
       return;
     }
 
+    // Emptying the date and the time is how a task is taken off the calendar,
+    // so it drops back into the Pool rather than lingering as "scheduled" with
+    // nothing to schedule.
+    const stripped =
+      !draft.scheduledDate && !draft.timeOfDay && !draft.allDay && draft.status === "scheduled";
+
     onSave(draft.id, {
       title: draft.title.trim(),
       summary: draft.summary?.trim() || undefined,
       description: draft.description?.trim() || undefined,
-      status: draft.status,
+      status: stripped ? "pool" : draft.status,
       priority: draft.priority,
       area: draft.area,
       scheduledDate: draft.scheduledDate,
@@ -142,7 +148,7 @@ export function TaskDetailDialog({
               onChange={(event) => update("title", event.target.value)}
             />
             {draft.title.length > TITLE_SOFT_LIMIT ? (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {draft.title.length} characters — titles read best under {TITLE_SOFT_LIMIT}.
               </span>
             ) : null}
@@ -169,11 +175,11 @@ export function TaskDetailDialog({
                 <span>
                   Long description
                   {draft.description ? (
-                    <span className="ml-2 text-[11px] normal-case text-muted-foreground">
+                    <span className="ml-2 text-xs normal-case text-muted-foreground">
                       {draft.description.trim().split(/\s+/).length} words
                     </span>
                   ) : (
-                    <span className="ml-2 text-[11px] normal-case">— optional</span>
+                    <span className="ml-2 text-xs normal-case">— optional</span>
                   )}
                 </span>
                 <ChevronDown
@@ -185,7 +191,7 @@ export function TaskDetailDialog({
               <Textarea
                 value={draft.description ?? ""}
                 placeholder="Room for the full context — notes, links, acceptance criteria…"
-                className="mt-2 min-h-48 font-mono text-[13px] leading-relaxed"
+                className="mt-2 min-h-48 font-mono text-sm leading-relaxed"
                 onChange={(event) => update("description", event.target.value)}
               />
             </CollapsibleContent>
@@ -309,7 +315,7 @@ export function TaskDetailDialog({
                 </Button>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">{TIMING_HINTS[timing]}</p>
+            <p className="text-xs text-muted-foreground">{TIMING_HINTS[timing]}</p>
           </div>
 
           {parent || followUps.length > 0 ? (

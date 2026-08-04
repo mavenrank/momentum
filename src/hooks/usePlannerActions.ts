@@ -6,6 +6,7 @@ import {
   addTask,
   createId,
   deleteTask,
+  returnTaskToPool,
   scheduleTask,
   toggleTaskDone,
   updateTask,
@@ -19,6 +20,8 @@ export interface PlannerActions {
   removeTask: (taskId: string) => void;
   toggleDone: (taskId: string) => void;
   moveToDate: (taskId: string, date: string | undefined) => void;
+  /** Clears date, time and all-day in one step and sends the task to the Pool. */
+  returnToPool: (taskId: string) => void;
   setStatus: (taskId: string, status: TaskStatus) => void;
   createFollowUp: (parentId: string, title: string, scheduledDate?: string) => void;
 }
@@ -87,6 +90,10 @@ export function usePlannerActions(
 
       moveToDate(taskId, date) {
         setData((current) => scheduleTask(current, taskId, date));
+      },
+
+      returnToPool(taskId) {
+        setData((current) => returnTaskToPool(current, taskId));
       },
 
       setStatus(taskId, status) {
