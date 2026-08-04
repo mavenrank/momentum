@@ -1,7 +1,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ParsePreview } from "./ParsePreview";
-import { findArea, fuzzyMatchAreas, getAreaColor } from "@/lib/areas";
+import { QuickAddFields, resolveFields } from "./QuickAddFields";
+import type { FieldOverrides } from "./QuickAddFields";
+import { fuzzyMatchAreas, getAreaColor } from "@/lib/areas";
 import { parseTaskInput, parseTaskLine, toHighlightSegments } from "@/lib/nlp/taskParser";
 import type { ParsedTask } from "@/lib/nlp/taskParser";
 import type { Area } from "@/types/planner";
@@ -14,7 +15,7 @@ export interface QuickAddProps {
   onCreate: (tasks: ParsedTask[]) => void;
   className?: string;
   autoFocus?: boolean;
-  /** Set false in dense panels where the field preview would crowd the layout. */
+  /** Set false in dense panels where the field row would crowd the layout. */
   showPreview?: boolean;
 }
 
@@ -26,9 +27,11 @@ const TOKEN_CLASS: Record<string, string> = {
   allDay: "nlp-token nlp-time",
 };
 
+const NO_OVERRIDES: FieldOverrides = {};
+
 export function QuickAdd({
   areas,
-  placeholder = "Add a task — try “Buy groceries tomorrow 3pm must #health”",
+  placeholder = "Buy groceries tomorrow 3pm must #health",
   defaultDate,
   onCreate,
   className,
@@ -38,6 +41,8 @@ export function QuickAdd({
   const [value, setValue] = React.useState("");
   const [areaQuery, setAreaQuery] = React.useState<string | null>(null);
   const [areaIndex, setAreaIndex] = React.useState(0);
+  // Fields the user pinned by hand. Cleared whenever a task is created.
+  const [overrides, setOverrides] = React.useState<FieldOverrides>(NO_OVERRIDES);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const mirrorRef = React.useRef<HTMLDivElement>(null);
   // The tag the user dismissed with Escape. Without this, the keyup that
@@ -118,15 +123,26 @@ export function QuickAdd({
       return;
     }
 
-    onCreate(
-      tasks.map((task) => ({
-        ...task,
-        scheduledDate: task.scheduledDate ?? defaultDate,
-      })),
-    );
+    // Overrides describe one task, so they only apply to a single-line entry.
+    // A pasted list keeps whatever each of its own lines said.
+    const resolved =
+      tasks.length === 1
+        ? [
+            {
+              ...tasks[0],
+              ...resolveFields(tasks[0], overrides, defaultDate),
+            },
+          ]
+        : tasks.map((task) => ({
+            ...task,
+            scheduledDate: task.scheduledDate ?? defaultDate,
+          }));
+
+    onCreate(resolved);
 
     setValue("");
     setAreaQuery(null);
+    setOverrides(NO_OVERRIDES);
     dismissedTag.current = null;
     if (keepFocus) {
       inputRef.current?.focus();
@@ -187,120 +203,123 @@ export function QuickAdd({
   }
 
   const segments = parsed ? toHighlightSegments(parsed) : [];
-  const pendingLines = isMultiLine
-    ? parseTaskInput(value, { knownAreas }).length
-    : 0;
+  const pendingLines = isMultiLine ? parseTaskInput(value, { knownAreas }).length : 0;
 
   return (
-    <div className={cn("relative", className)}>
-      {/* The wrapper carries the field chrome. The input on top is fully
-          transparent so the colored overlay beneath it stays visible — giving
-          the input its own background would paint over the highlighting. */}
-      <div className="relative rounded-md border border-input bg-background shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring">
-        <div
-          ref={mirrorRef}
-          aria-hidden
-          className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 text-sm"
-        >
-          {segments.map((segment, index) => (
-            <span
-              key={index}
-              className={segment.kind ? TOKEN_CLASS[segment.kind] : undefined}
-            >
-              {segment.text}
-            </span>
-          ))}
+    <div className={cn("flex items-start gap-2", className)}>
+      {/* The field is deliberately narrow: a task line is short, and the space
+          it used to eat now carries the detected fields. */}
+      <div className={cn("relative w-full", showPreview && "max-w-sm shrink-0")}>
+        {/* The wrapper carries the field chrome. The input on top is fully
+            transparent so the colored overlay beneath it stays visible — giving
+            the input its own background would paint over the highlighting. */}
+        <div className="relative rounded-md border border-input bg-background shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring">
+          <div
+            ref={mirrorRef}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 text-sm"
+          >
+            {segments.map((segment, index) => (
+              <span
+                key={index}
+                className={segment.kind ? TOKEN_CLASS[segment.kind] : undefined}
+              >
+                {segment.text}
+              </span>
+            ))}
+          </div>
+
+          <input
+            ref={inputRef}
+            value={value}
+            autoFocus={autoFocus}
+            placeholder={placeholder}
+            spellCheck={false}
+            aria-label="Quick add a task"
+            onScroll={syncScroll}
+            onChange={(event) => {
+              setValue(event.target.value);
+              refreshAreaQuery(event.target.value, event.target.selectionStart ?? 0);
+            }}
+            onPaste={(event) => {
+              const text = event.clipboardData.getData("text");
+              if (text.includes("\n")) {
+                // Keep the newlines so the batch parser can split on them.
+                event.preventDefault();
+                setValue((current) => `${current}${text}`.trim());
+              }
+            }}
+            onKeyUp={(event) =>
+              refreshAreaQuery(event.currentTarget.value, event.currentTarget.selectionStart ?? 0)
+            }
+            onClick={(event) =>
+              refreshAreaQuery(event.currentTarget.value, event.currentTarget.selectionStart ?? 0)
+            }
+            onKeyDown={handleKeyDown}
+            onBlur={() => window.setTimeout(() => setAreaQuery(null), 120)}
+            className={cn(
+              "relative h-9 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground",
+              // Glyphs come from the overlay; only the caret stays visible here.
+              value ? "text-transparent caret-foreground" : "text-foreground",
+            )}
+          />
         </div>
 
-        <input
-          ref={inputRef}
-          value={value}
-          autoFocus={autoFocus}
-          placeholder={placeholder}
-          spellCheck={false}
-          onScroll={syncScroll}
-          onChange={(event) => {
-            setValue(event.target.value);
-            refreshAreaQuery(event.target.value, event.target.selectionStart ?? 0);
-          }}
-          onPaste={(event) => {
-            const text = event.clipboardData.getData("text");
-            if (text.includes("\n")) {
-              // Keep the newlines so the batch parser can split on them.
-              event.preventDefault();
-              setValue((current) => `${current}${text}`.trim());
-            }
-          }}
-          onKeyUp={(event) =>
-            refreshAreaQuery(event.currentTarget.value, event.currentTarget.selectionStart ?? 0)
-          }
-          onClick={(event) =>
-            refreshAreaQuery(event.currentTarget.value, event.currentTarget.selectionStart ?? 0)
-          }
-          onKeyDown={handleKeyDown}
-          onBlur={() => window.setTimeout(() => setAreaQuery(null), 120)}
-          className={cn(
-            "relative h-9 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground",
-            // Glyphs come from the overlay; only the caret stays visible here.
-            value ? "text-transparent caret-foreground" : "text-foreground",
-          )}
-        />
+        {areaQuery !== null ? (
+          <div className="absolute z-30 mt-1 w-64 overflow-hidden rounded-md border bg-popover p-1 shadow-md">
+            {areaMatches.length === 0 ? (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                Press Enter to create the area “{areaQuery}”.
+              </div>
+            ) : (
+              <>
+                {areaMatches.map((area, index) => (
+                  <button
+                    key={area.id}
+                    type="button"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      completeArea(area.name);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
+                      index === areaIndex && "bg-accent text-accent-foreground",
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: getAreaColor(areas, area.name) }}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{area.name}</span>
+                    {index === areaIndex ? (
+                      <kbd className="shrink-0 rounded border px-1 font-mono text-[0.6875rem] text-muted-foreground">
+                        Tab
+                      </kbd>
+                    ) : null}
+                  </button>
+                ))}
+                <p className="border-t px-2 pb-0.5 pt-1 text-[0.6875rem] text-muted-foreground">
+                  ↑↓ to choose · Tab to complete · Esc to dismiss
+                </p>
+              </>
+            )}
+          </div>
+        ) : null}
       </div>
 
-      {areaQuery !== null ? (
-        <div className="absolute z-30 mt-1 w-64 overflow-hidden rounded-md border bg-popover p-1 shadow-md">
-          {areaMatches.length === 0 ? (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Press Enter to create the area “{areaQuery}”.
-            </div>
-          ) : (
-            <>
-              {areaMatches.map((area, index) => (
-                <button
-                  key={area.id}
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    completeArea(area.name);
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
-                    index === areaIndex && "bg-accent text-accent-foreground",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: getAreaColor(areas, area.name) }}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{area.name}</span>
-                  {index === areaIndex ? (
-                    <kbd className="shrink-0 rounded border px-1 font-mono text-[9px] text-muted-foreground">
-                      Tab
-                    </kbd>
-                  ) : null}
-                </button>
-              ))}
-              <p className="border-t px-2 pb-0.5 pt-1 text-[10px] text-muted-foreground">
-                ↑↓ to choose · Tab to complete · Esc to dismiss
-              </p>
-            </>
-          )}
-        </div>
-      ) : null}
-
-      {showPreview && parsed ? (
-        <ParsePreview
-          parsed={{ ...parsed, scheduledDate: parsed.scheduledDate ?? defaultDate }}
+      {/* Always rendered at a fixed height, so the board below never shifts as
+          the parse changes under the caret. */}
+      {showPreview ? (
+        <QuickAddFields
+          className="mt-1"
+          parsed={parsed}
+          overrides={overrides}
+          setOverrides={setOverrides}
           areas={areas}
-          isNewArea={Boolean(parsed.area) && !findArea(areas, parsed.area)}
+          defaultDate={defaultDate}
+          pendingLines={pendingLines}
         />
-      ) : null}
-
-      {pendingLines > 1 ? (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {pendingLines} lines detected — press Enter to create them all.
-        </p>
       ) : null}
     </div>
   );
