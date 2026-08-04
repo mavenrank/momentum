@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { writeSnapshot } from "../lib/persistence/folderBackup";
 import { repository } from "../lib/persistence/repository";
+import { requestPersistentStorage } from "../lib/persistence/storagePersistence";
 import { createEmptyData } from "../lib/plannerData";
 import type { PlannerData } from "../types/planner";
 
@@ -27,6 +29,11 @@ export function usePlannerData(): PlannerDataApi {
   useEffect(() => {
     let cancelled = false;
 
+    // Asked for once per session, before the first write. A browser that grants
+    // it will not evict this origin under disk pressure; one that refuses costs
+    // nothing but the promise.
+    void requestPersistentStorage();
+
     repository.load().then((loaded) => {
       if (cancelled) {
         return;
@@ -42,9 +49,19 @@ export function usePlannerData(): PlannerDataApi {
   }, []);
 
   useEffect(() => {
-    return repository.onQuotaError(() => {
+    return repository.onQuotaError((error) => {
+      // "Could not save" on its own is unactionable — the browser's own message
+      // is the only thing that distinguishes a full disk from a failed upgrade
+      // from a private-window restriction.
+      const detail =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : typeof error === "string"
+            ? error
+            : "Unknown error.";
+
       setStorageError(
-        "Momentum could not save to browser storage. Export a backup from the Data view before continuing.",
+        `Momentum could not write to browser storage — ${detail} Your work is safe in this tab, but it is not being saved. Export a backup from the Data view.`,
       );
     });
   }, []);
@@ -73,7 +90,11 @@ export function usePlannerData(): PlannerDataApi {
     }
 
     saveTimer.current = window.setTimeout(() => {
-      void repository.save({ ...data, updatedAt: new Date().toISOString() });
+      const next = { ...data, updatedAt: new Date().toISOString() };
+      void repository.save(next);
+      // Rate-limited internally, so calling it on every save is cheap; it only
+      // touches the disk once the interval has passed.
+      void writeSnapshot(next).catch(() => undefined);
       saveTimer.current = null;
     }, SAVE_DEBOUNCE_MS);
 

@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/toast";
+import { BackupFolderCard } from "./BackupFolderCard";
 import { getAreaColor } from "@/lib/areas";
+import { snapshotFilename } from "@/lib/persistence/folderBackup";
 import {
   buildLogseqBundle,
   exportToLogseqDirectory,
@@ -128,6 +130,14 @@ export function DataView({ data, replaceData }: DataViewProps) {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <BackupFolderCard
+          data={data}
+          replaceData={replaceData}
+          onDownloadSnapshot={() =>
+            download(JSON.stringify(data, null, 2), snapshotFilename(), "application/json")
+          }
+        />
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Portable backup</CardTitle>
