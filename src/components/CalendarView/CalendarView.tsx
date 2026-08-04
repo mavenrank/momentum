@@ -108,7 +108,7 @@ const DayCell = React.memo(function DayCell({
         {isMonthStart ? (
           <span
             className={cn(
-              "text-[10px] font-semibold uppercase tracking-wide",
+              "text-[0.6875rem] font-semibold uppercase tracking-wide",
               inActiveMonth ? "text-foreground" : "text-muted-foreground/60",
             )}
           >
@@ -125,7 +125,7 @@ const DayCell = React.memo(function DayCell({
             onClick={() => onOpenTask(task.id)}
             title={[task.title, task.summary].filter(Boolean).join(" — ")}
             className={cn(
-              "flex w-full min-w-0 items-center gap-1 rounded-[3px] px-1 py-px text-left text-[11px] leading-tight transition-colors hover:bg-accent",
+              "flex w-full min-w-0 items-center gap-1 rounded-[3px] px-1 py-px text-left text-xs leading-tight transition-colors hover:bg-accent",
               task.status === "done" && "line-through opacity-50",
               !inActiveMonth && "opacity-70",
             )}
@@ -147,7 +147,7 @@ const DayCell = React.memo(function DayCell({
             )}
             <span className="min-w-0 flex-1 truncate">{task.title}</span>
             {task.timeOfDay ? (
-              <span className="shrink-0 font-mono text-[9px] text-muted-foreground">
+              <span className="shrink-0 font-mono text-[0.6875rem] text-muted-foreground">
                 {formatTimeOfDay(task.timeOfDay).split("–")[0]}
               </span>
             ) : null}
@@ -158,7 +158,7 @@ const DayCell = React.memo(function DayCell({
           <button
             type="button"
             onClick={() => onOpenDay(day)}
-            className="px-1 text-left text-[10px] text-muted-foreground hover:text-foreground"
+            className="px-1 text-left text-[0.6875rem] text-muted-foreground hover:text-foreground"
           >
             +{tasks.length - maxChips} more
           </button>
@@ -304,7 +304,7 @@ export function CalendarView({
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+            className="py-1 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {label}
           </div>

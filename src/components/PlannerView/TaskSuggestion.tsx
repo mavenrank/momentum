@@ -75,7 +75,7 @@ export function TaskSuggestion({
         onClick={() => setOpen(true)}
         className={cn(
           // Held back until the card is hovered or focused so rows stay quiet.
-          "flex items-center gap-1 rounded px-1 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100",
+          "flex items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100",
           className,
         )}
       >
@@ -113,7 +113,7 @@ export function TaskSuggestion({
           }
         }}
         onBlur={() => window.setTimeout(() => setOpen(false), 140)}
-        className="h-6 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-[11px] outline-none focus:ring-2 focus:ring-ring"
+        className="h-6 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
       />
 
       {needsTime
@@ -128,7 +128,7 @@ export function TaskSuggestion({
                     onSetTime(preset);
                     setOpen(false);
                   }}
-                  className="shrink-0 rounded border px-1 py-0.5 font-mono text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="shrink-0 rounded border px-1 py-0.5 font-mono text-[0.6875rem] text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   {preset.slice(0, 2)}
                 </button>
@@ -141,7 +141,7 @@ export function TaskSuggestion({
                   onSetAllDay();
                   setOpen(false);
                 }}
-                className="shrink-0 rounded border px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="shrink-0 rounded border px-1 py-0.5 text-[0.6875rem] text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 All day
               </button>
@@ -155,7 +155,7 @@ export function TaskSuggestion({
                 onSchedule(toDateKey(new Date()));
                 setOpen(false);
               }}
-              className="shrink-0 rounded border px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="shrink-0 rounded border px-1 py-0.5 text-[0.6875rem] text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               Today
             </button>

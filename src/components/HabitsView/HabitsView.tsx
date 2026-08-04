@@ -150,7 +150,7 @@ export function HabitsView({ data, setData, selectedDate, setSelectedDate }: Hab
                 <div
                   key={date}
                   className={cn(
-                    "pb-1 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+                    "pb-1 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground",
                     date === today && "text-primary",
                   )}
                 >

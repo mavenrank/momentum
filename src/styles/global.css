@@ -176,6 +176,13 @@
 
   html {
     color-scheme: light;
+    /**
+     * The app reads best a notch above the browser default, so that notch is
+     * the default. Tailwind sizes type and spacing in rem, so this scales the
+     * whole interface rather than just the text — which is why the few px-based
+     * sizes left in the codebase were converted to rem.
+     */
+    font-size: 110%;
   }
 
   html.dark {

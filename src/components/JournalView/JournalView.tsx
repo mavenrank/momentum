@@ -206,7 +206,7 @@ export function JournalView({ data, setData, selectedDate, setSelectedDate }: Jo
                             style={{ backgroundColor: getAreaColor(data.areas, task.area) }}
                           />
                           <span className="min-w-0 flex-1 truncate">{task.title}</span>
-                          <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                          <span className="shrink-0 font-mono text-[0.6875rem] text-muted-foreground">
                             {task.id}
                           </span>
                         </CommandItem>
@@ -237,7 +237,7 @@ export function JournalView({ data, setData, selectedDate, setSelectedDate }: Jo
                       style={{ backgroundColor: getAreaColor(data.areas, task.area) }}
                     />
                     <span className="truncate">{task.title}</span>
-                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                    <span className="shrink-0 font-mono text-[0.6875rem] text-muted-foreground">
                       {task.id.slice(-4)}
                     </span>
                   </button>
@@ -273,7 +273,7 @@ export function JournalView({ data, setData, selectedDate, setSelectedDate }: Jo
                     <div className="flex items-center justify-between">
                       <strong className="text-xs">{note.date}</strong>
                       {note.taskReferences.length > 0 ? (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[0.6875rem] text-muted-foreground">
                           {note.taskReferences.length} ref
                           {note.taskReferences.length === 1 ? "" : "s"}
                         </span>
