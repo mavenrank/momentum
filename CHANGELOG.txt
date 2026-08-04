@@ -4,6 +4,45 @@ All notable changes to Momentum will be documented in this file.
 
 The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
 
+## [0.5.0] - 2026-08-04
+
+### Added
+- Added time-blocking: a toggle swaps either planner lens for an hour grid over
+  the same days, with tasks drawn where they fall, drag to place and drag either
+  edge to resize. Overlapping blocks share the lane side by side. The mode is
+  shared between Today and Week, with a Settings option to keep them separate.
+- Added a right-click action menu on task cards covering details, completion,
+  priority, area, scheduling, follow-ups and deletion.
+- Added a hover row on task cards: a follow-up button, and a two-step "pull to
+  Pool" that clears the date and time together.
+- Added editable field chips to Quick Add, so anything the parser detects can be
+  overridden before the task is created.
+- Added persistent storage requests and folder-backed JSON snapshots, keeping
+  the most recent thirty. Browsers without a local-disk picker download the
+  snapshot instead.
+- Added `scripts/momentum-data.mjs`, which splits an export into a separate
+  private git repository of JSON and reassembles it into an importable bundle.
+- Added briefs in `docs/prompts/` for provisioning the data repository and for a
+  Tauri shell experiment.
+
+### Changed
+- Tasks are stored as individual records rather than nested inside the day that
+  created them, and saves now write only what changed instead of clearing every
+  table and rewriting it. Deletions leave tombstones, changed records are
+  stamped with `updatedAt`, and new task IDs carry a per-installation tag.
+- Merged the week view's Unscheduled and Pool panels into one filtered inbox.
+- Both planner lenses now share one header, so the controls they have in common
+  stay in place when switching between them.
+- Raised the interface to a 110% baseline and lifted every sub-11px type size.
+- Storage failures are reported beside the theme toggle rather than as a banner
+  above the workspace, and now include the browser's own error message.
+
+### Fixed
+- Fixed the week strip growing and shrinking as tasks gained detail; columns now
+  divide the available height evenly and scroll independently.
+- Fixed the Quick Add preview shifting the board as the parse changed.
+- Fixed the follow-up prompt interrupting every single task completion.
+
 ## [0.4.0] - 2026-08-03
 
 ### Added
