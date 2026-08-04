@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlannerActions } from "@/hooks/usePlannerActions";
+import { isTimeBlocking, setTimeBlocking, usePreferences } from "@/lib/preferences";
 import { TodayView } from "./TodayView/TodayView";
 import { WeekView } from "./WeekView/WeekView";
 import type { PlannerData, PlannerLens } from "@/types/planner";
@@ -26,39 +27,50 @@ export function PlannerView({
   onOpenDay,
 }: PlannerViewProps) {
   const actions = usePlannerActions(setData);
+  const preferences = usePreferences();
+  // Owned here rather than inside a lens, so the mode survives switching between
+  // them — and so the Settings toggle that links the two has one place to act on.
+  const timeBlocking = isTimeBlocking(preferences, lens);
+
+  /**
+   * The lens switch is handed to the active view rather than sitting in a strip
+   * of its own. It belongs beside the date controls it modifies, and a row above
+   * the workspace spent a whole line of height saying very little.
+   */
+  const lensControl = (
+    <Tabs value={lens} onValueChange={(value) => setLens(value as PlannerLens)}>
+      <TabsList>
+        <TabsTrigger value="today">Today</TabsTrigger>
+        <TabsTrigger value="week">Week</TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
 
   return (
-    <div className="flex h-full flex-col gap-3">
-      <Tabs value={lens} onValueChange={(value) => setLens(value as PlannerLens)}>
-        <TabsList className="h-8">
-          <TabsTrigger value="today" className="text-xs">
-            Today
-          </TabsTrigger>
-          <TabsTrigger value="week" className="text-xs">
-            Week
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      <div key={lens} className="view-enter min-h-0 flex-1">
-        {lens === "today" ? (
-          <TodayView
-            data={data}
-            actions={actions}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-          />
-        ) : (
-          <WeekView
-            data={data}
-            setData={setData}
-            actions={actions}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            onOpenDay={onOpenDay}
-          />
-        )}
-      </div>
+    <div key={lens} className="view-enter h-full min-h-0">
+      {lens === "today" ? (
+        <TodayView
+          data={data}
+          actions={actions}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          lensControl={lensControl}
+          timeBlocking={timeBlocking}
+          onTimeBlockingChange={(on) => setTimeBlocking("today", on)}
+        />
+      ) : (
+        <WeekView
+          data={data}
+          setData={setData}
+          actions={actions}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          onOpenDay={onOpenDay}
+          lensControl={lensControl}
+          timeBlocking={timeBlocking}
+          onTimeBlockingChange={(on) => setTimeBlocking("week", on)}
+        />
+      )}
     </div>
   );
 }

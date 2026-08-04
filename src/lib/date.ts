@@ -119,6 +119,76 @@ export function getWeekNumber(dateKey: string): number {
   return 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 86_400_000));
 }
 
+/* ------------------------------------------------------------------ time -- */
+
+/** "15:30" → 930 minutes past midnight. Null when the text isn't a clock time. */
+export function timeToMinutes(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) {
+    return null;
+  }
+  return hour * 60 + minute;
+}
+
+/** 930 → "15:30". Values outside the day are clamped rather than wrapped. */
+export function minutesToTime(minutes: number): string {
+  const clamped = Math.max(0, Math.min(24 * 60 - 1, Math.round(minutes)));
+  const hour = Math.floor(clamped / 60);
+  const minute = clamped % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export interface TimeRange {
+  /** Minutes past midnight. */
+  start: number;
+  /** Minutes past midnight; always greater than `start`. */
+  end: number;
+}
+
+/**
+ * Reads a `timeOfDay` into a block on the clock. A task written as a single
+ * moment ("15:00") is given a nominal duration so it can be drawn as a block —
+ * the stored value stays a single time until the user resizes it.
+ */
+export function parseTimeRange(
+  timeOfDay: string | undefined,
+  defaultDuration = 60,
+): TimeRange | null {
+  if (!timeOfDay) {
+    return null;
+  }
+
+  const [rawStart, rawEnd] = timeOfDay.split("-");
+  const start = timeToMinutes(rawStart ?? "");
+  if (start === null) {
+    return null;
+  }
+
+  const end = rawEnd ? timeToMinutes(rawEnd) : null;
+  // An end at or before the start is treated as unset rather than as a block
+  // that runs backwards.
+  if (end === null || end <= start) {
+    return { start, end: Math.min(24 * 60, start + defaultDuration) };
+  }
+  return { start, end };
+}
+
+/** Serialises a block back into the stored `timeOfDay` form. */
+export function formatTimeRangeValue(range: TimeRange): string {
+  return `${minutesToTime(range.start)}-${minutesToTime(range.end)}`;
+}
+
+/** Rounds to the nearest slot — 15 minutes is the grid the timeline snaps to. */
+export function snapMinutes(minutes: number, step = 15): number {
+  return Math.round(minutes / step) * step;
+}
+
 /** "15:00" → "3pm", "14:00-16:00" → "2–4pm". */
 export function formatTimeOfDay(timeOfDay: string | undefined): string {
   if (!timeOfDay) {

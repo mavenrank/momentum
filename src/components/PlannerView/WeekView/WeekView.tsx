@@ -8,9 +8,10 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,19 @@ import {
 } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { QuickAdd } from "../QuickAdd";
+import { InboxPanel, type InboxBucket } from "../InboxPanel";
+import { PlannerHeader, STEPPER_LABEL_WIDTH } from "../PlannerHeader";
 import { TaskCard } from "../TaskCard";
+import { TaskContextMenu, useTaskContextMenu } from "../TaskContextMenu";
+import type { TaskMenuActions } from "../TaskContextMenu";
 import { TaskDetailDialog } from "../TaskDetailDialog";
+import { FollowUpPrompt } from "../FollowUpPrompt";
+import { computeDayWindow, TimeBlockGrid } from "../TimeBlockGrid";
+import { blockTask, resolveTimeBlockDrop } from "../timeBlockDnd";
 import {
   addDays,
   formatDayHeader,
+  formatTimeRangeValue,
   formatWeekRange,
   getWeekDays,
   getWeekNumber,
@@ -46,25 +54,39 @@ interface WeekViewProps {
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   onOpenDay: (date: string) => void;
+  /** The Today/Week switch, rendered inline with this view's own controls. */
+  lensControl?: React.ReactNode;
+  timeBlocking: boolean;
+  onTimeBlockingChange: (on: boolean) => void;
 }
 
 /* ------------------------------------------------------------- dnd atoms -- */
 
-function DraggableTask({
-  task,
-  areas,
-  selected,
-  onSelect,
-  onOpenDetail,
-  onToggleDone,
-}: {
-  task: DailyTask;
-  areas: PlannerData["areas"];
-  selected: boolean;
+/**
+ * Everything a card needs to be interactive, passed as one object so the
+ * columns and drop zones don't each grow a row of near-identical props.
+ */
+interface CardHandlers {
+  selectedTaskId: string | null;
   onSelect: (taskId: string) => void;
   onOpenDetail: (taskId: string) => void;
   onToggleDone: (taskId: string) => void;
-}) {
+  onContextMenu: (event: React.MouseEvent, taskId: string) => void;
+  onFollowUp: (task: DailyTask) => void;
+  onReturnToPool: (taskId: string) => void;
+}
+
+function DraggableTask({
+  task,
+  areas,
+  selectedTaskId,
+  onSelect,
+  onOpenDetail,
+  onToggleDone,
+  onContextMenu,
+  onFollowUp,
+  onReturnToPool,
+}: CardHandlers & { task: DailyTask; areas: PlannerData["areas"] }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
 
   return (
@@ -73,11 +95,14 @@ function DraggableTask({
       task={task}
       areas={areas}
       compact
-      selected={selected}
+      selected={selectedTaskId === task.id}
       onFocus={() => onSelect(task.id)}
       onClick={() => onSelect(task.id)}
       onDoubleClick={() => onOpenDetail(task.id)}
+      onContextMenu={(event) => onContextMenu(event, task.id)}
       onToggleDone={() => onToggleDone(task.id)}
+      onFollowUp={() => onFollowUp(task)}
+      onReturnToPool={() => onReturnToPool(task.id)}
       className={cn("cursor-grab active:cursor-grabbing", isDragging && "opacity-40")}
       {...attributes}
       {...listeners}
@@ -89,20 +114,14 @@ function DayColumn({
   date,
   tasks,
   areas,
-  selectedTaskId,
-  onSelect,
-  onOpenDetail,
-  onToggleDone,
+  cards,
   onOpenDay,
   index,
 }: {
   date: string;
   tasks: DailyTask[];
   areas: PlannerData["areas"];
-  selectedTaskId: string | null;
-  onSelect: (taskId: string) => void;
-  onOpenDetail: (taskId: string) => void;
-  onToggleDone: (taskId: string) => void;
+  cards: CardHandlers;
   onOpenDay: (date: string) => void;
   index: number;
 }) {
@@ -110,10 +129,14 @@ function DayColumn({
   const isToday = date === toDateKey(new Date());
 
   return (
+    // min-h-0 is what stops a busy day from growing the whole row: the column is
+    // sized by the grid, and its list scrolls inside that. Without it the tallest
+    // column set the height for all seven, so adding a summary to one task
+    // resized the entire week.
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-40 flex-col rounded-md border bg-muted/25 transition-colors",
+        "flex min-h-0 flex-col overflow-hidden rounded-md border bg-muted/25 transition-colors",
         isOver && "border-ring bg-accent",
         isToday && "border-ring/50",
       )}
@@ -122,93 +145,23 @@ function DayColumn({
         type="button"
         onClick={() => onOpenDay(date)}
         title={`Open ${formatDayHeader(date)} in the Today view`}
-        className="flex items-center justify-between border-b px-2 py-1.5 text-left text-xs font-semibold hover:bg-accent/60"
+        className="flex shrink-0 items-center justify-between border-b px-2 py-1.5 text-left text-xs font-semibold hover:bg-accent/60"
       >
         <span className={cn(isToday && "text-primary")}>{formatDayHeader(date)}</span>
-        <span className="font-mono text-[10px] font-normal text-muted-foreground">
-          ⌃⇧{index + 1}
+        <span className="flex items-center gap-1.5">
+          {tasks.length > 0 ? <Badge variant="muted">{tasks.length}</Badge> : null}
+          <span className="font-mono text-[0.6875rem] font-normal text-muted-foreground">
+            ⌃⇧{index + 1}
+          </span>
         </span>
       </button>
 
-      <div role="list" className="flex flex-1 flex-col gap-1 overflow-y-auto p-1.5">
+      <div role="list" className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1.5">
         {tasks.map((task) => (
-          <DraggableTask
-            key={task.id}
-            task={task}
-            areas={areas}
-            selected={selectedTaskId === task.id}
-            onSelect={onSelect}
-            onOpenDetail={onOpenDetail}
-            onToggleDone={onToggleDone}
-          />
+          <DraggableTask key={task.id} task={task} areas={areas} {...cards} />
         ))}
       </div>
     </div>
-  );
-}
-
-interface DropZoneProps {
-  id: string;
-  title: string;
-  tasks: DailyTask[];
-  areas: PlannerData["areas"];
-  placeholder: string;
-  selectedTaskId: string | null;
-  onSelect: (taskId: string) => void;
-  onOpenDetail: (taskId: string) => void;
-  onToggleDone: (taskId: string) => void;
-  onCreate: (parsed: Parameters<PlannerActions["createFromParsed"]>[0]) => void;
-}
-
-/** Droppable panel above the strip — dropping here clears the day assignment. */
-function TaskDropZone({
-  id,
-  title,
-  tasks,
-  areas,
-  placeholder,
-  selectedTaskId,
-  onSelect,
-  onOpenDetail,
-  onToggleDone,
-  onCreate,
-}: DropZoneProps) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-
-  return (
-    <section
-      ref={setNodeRef}
-      className={cn(
-        "flex min-h-0 flex-col rounded-lg border bg-card transition-colors",
-        isOver && "border-ring bg-accent",
-      )}
-    >
-      <header className="flex items-center justify-between border-b px-3 py-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </h3>
-        <Badge variant="muted">{tasks.length}</Badge>
-      </header>
-      <div className="space-y-2 p-2">
-        <QuickAdd areas={areas} placeholder={placeholder} onCreate={onCreate} />
-        <div role="list" className="flex max-h-44 flex-col gap-1 overflow-y-auto">
-          {tasks.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">Nothing here.</p>
-          ) : null}
-          {tasks.map((task) => (
-            <DraggableTask
-              key={task.id}
-              task={task}
-              areas={areas}
-              selected={selectedTaskId === task.id}
-              onSelect={onSelect}
-              onOpenDetail={onOpenDetail}
-              onToggleDone={onToggleDone}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -221,6 +174,9 @@ export function WeekView({
   selectedDate,
   setSelectedDate,
   onOpenDay,
+  lensControl,
+  timeBlocking,
+  onTimeBlockingChange,
 }: WeekViewProps) {
   const { toast } = useToast();
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
@@ -228,6 +184,13 @@ export function WeekView({
   const [slide, setSlide] = React.useState<"left" | "right" | null>(null);
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [detailTaskId, setDetailTaskId] = React.useState<string | null>(null);
+  const [followUpFor, setFollowUpFor] = React.useState<DailyTask | null>(null);
+  const [inboxBucket, setInboxBucket] = React.useState<InboxBucket>("pool");
+  const [dropPreview, setDropPreview] = React.useState<{
+    date: string;
+    minutes: number;
+  } | null>(null);
+  const menu = useTaskContextMenu();
 
   const weekStart = startOfWeekKey(selectedDate);
   const weekDays = React.useMemo(() => getWeekDays(weekStart), [weekStart]);
@@ -246,10 +209,7 @@ export function WeekView({
   const tasksByDay = React.useMemo(
     () =>
       new Map(
-        weekDays.map((day) => [
-          day,
-          flatAllTasks.filter((task) => task.scheduledDate === day),
-        ]),
+        weekDays.map((day) => [day, flatAllTasks.filter((task) => task.scheduledDate === day)]),
       ),
     [flatAllTasks, weekDays],
   );
@@ -270,35 +230,67 @@ export function WeekView({
     return [...poolTasks(data), ...leftovers];
   }, [data, flatAllTasks, weekStart]);
 
+  // The grid draws by date, so it wants exactly what is scheduled this week.
+  const weekTasks = React.useMemo(
+    () => flatAllTasks.filter((task) => task.scheduledDate && weekDays.includes(task.scheduledDate)),
+    [flatAllTasks, weekDays],
+  );
+  const dayWindow = React.useMemo(() => computeDayWindow(weekTasks), [weekTasks]);
+
+  const columns = React.useMemo(
+    () => weekDays.map((day) => ({ key: day, label: formatDayHeader(day), date: day })),
+    [weekDays],
+  );
+
   function shiftWeek(direction: -1 | 1) {
     setSlide(direction === 1 ? "right" : "left");
     setSelectedDate(addDays(selectedDate, direction * 7));
     window.setTimeout(() => setSlide(null), 260);
   }
 
+  function returnToPool(taskId: string) {
+    actions.returnToPool(taskId);
+    toast("Pulled back to the Pool.");
+  }
+
+  /* ----------------------------------------------------------------- dnd -- */
+
   function handleDragStart(event: DragStartEvent) {
     setDraggingTask(flatAllTasks.find((task) => task.id === event.active.id) ?? null);
   }
 
+  function handleDragMove(event: DragMoveEvent) {
+    const drop = resolveTimeBlockDrop(event, dayWindow);
+    setDropPreview(drop?.kind === "lane" ? { date: drop.date, minutes: drop.minutes } : null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    const drop = resolveTimeBlockDrop(event, dayWindow);
+    const taskId = String(event.active.id);
     setDraggingTask(null);
-    const overId = event.over?.id;
-    if (typeof overId !== "string") {
+    setDropPreview(null);
+
+    if (!drop) {
       return;
     }
 
-    const taskId = String(event.active.id);
-    if (overId === "unscheduled") {
-      actions.moveToDate(taskId, undefined);
-      return;
-    }
-    if (overId === "pool") {
-      actions.setStatus(taskId, "pool");
-      actions.moveToDate(taskId, undefined);
-      return;
-    }
-    if (overId.startsWith("day:")) {
-      actions.moveToDate(taskId, overId.slice(4));
+    switch (drop.kind) {
+      case "unscheduled":
+        actions.moveToDate(taskId, undefined);
+        break;
+      case "pool":
+        returnToPool(taskId);
+        break;
+      case "day":
+        actions.moveToDate(taskId, drop.date);
+        break;
+      case "allDay":
+        actions.moveToDate(taskId, drop.date);
+        actions.patchTask(taskId, { timeOfDay: undefined });
+        break;
+      case "lane":
+        blockTask(actions, flatAllTasks, taskId, drop.date, drop.minutes);
+        break;
     }
   }
 
@@ -327,25 +319,77 @@ export function WeekView({
 
   const weeklyEntry = ensureWeekly(data, weekStart);
 
+  const cards: CardHandlers = {
+    selectedTaskId,
+    onSelect: setSelectedTaskId,
+    onOpenDetail: setDetailTaskId,
+    onToggleDone: actions.toggleDone,
+    onContextMenu: menu.open,
+    onFollowUp: setFollowUpFor,
+    onReturnToPool: returnToPool,
+  };
+
+  const menuActions: TaskMenuActions = {
+    openDetails: setDetailTaskId,
+    toggleDone: actions.toggleDone,
+    setPriority: (taskId, priority) => actions.patchTask(taskId, { priority }),
+    setArea: (taskId, area) => actions.patchTask(taskId, { area }),
+    schedule: actions.moveToDate,
+    setTime: (taskId, timeOfDay) => actions.patchTask(taskId, { timeOfDay, allDay: undefined }),
+    setAllDay: (taskId) => actions.patchTask(taskId, { allDay: true, timeOfDay: undefined }),
+    followUp: setFollowUpFor,
+    returnToPool,
+    remove: (task) => {
+      if (window.confirm(`Delete “${task.title}”?`)) {
+        actions.removeTask(task.id);
+      }
+    },
+  };
+
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex h-full flex-col gap-3">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background/95 px-3 py-2 backdrop-blur">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              Week {getWeekNumber(weekStart)} — {formatWeekRange(weekStart)}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Drag a task onto a day, or select one and press Ctrl+Shift+1–7.
-            </p>
-          </div>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setDraggingTask(null);
+        setDropPreview(null);
+      }}
+    >
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <PlannerHeader
+          title={`Week ${getWeekNumber(weekStart)} — ${formatWeekRange(weekStart)}`}
+          subtitle="Drag a task onto a day, or select one and press Ctrl+Shift+1–7."
+          lensControl={lensControl}
+        >
+          <Button
+            type="button"
+            variant={timeBlocking ? "default" : "outline"}
+            aria-pressed={timeBlocking}
+            title={
+              timeBlocking
+                ? "Turn time-blocking off and go back to the strip"
+                : "Turn time-blocking on — drag tasks onto the hours of the week"
+            }
+            onClick={() => onTimeBlockingChange(!timeBlocking)}
+          >
+            <CalendarClock className="size-4" />
+            Time-Blocking
+          </Button>
+
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" title="Previous week" onClick={() => shiftWeek(-1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Previous week"
+              onClick={() => shiftWeek(-1)}
+            >
               <ChevronLeft className="size-4" />
             </Button>
             <Button
               variant="outline"
-              size="sm"
+              className={STEPPER_LABEL_WIDTH}
               onClick={() => setSelectedDate(toDateKey(new Date()))}
             >
               This week
@@ -354,41 +398,29 @@ export function WeekView({
               <ChevronRight className="size-4" />
             </Button>
           </div>
-        </header>
+        </PlannerHeader>
 
-        <div className="grid gap-3 lg:grid-cols-2">
-          <TaskDropZone
-            id="unscheduled"
-            title="Unscheduled (this week)"
-            tasks={unscheduled}
-            areas={data.areas}
-            placeholder="Commit a task to this week…"
-            selectedTaskId={selectedTaskId}
-            onSelect={setSelectedTaskId}
-            onOpenDetail={setDetailTaskId}
-            onToggleDone={actions.toggleDone}
-            onCreate={(tasks) => {
-              const created = actions.createFromParsed(tasks, "planned");
-              toast(created === 1 ? "Task added." : `${created} tasks created.`);
-            }}
-          />
-          <TaskDropZone
-            id="pool"
-            title="Pool"
-            tasks={pool}
-            areas={data.areas}
-            placeholder="Dump an untriaged task…"
-            selectedTaskId={selectedTaskId}
-            onSelect={setSelectedTaskId}
-            onOpenDetail={setDetailTaskId}
-            onToggleDone={actions.toggleDone}
-            onCreate={(tasks) => {
-              const created = actions.createFromParsed(tasks, "pool");
-              toast(created === 1 ? "Task added to the Pool." : `${created} tasks created.`);
-            }}
-          />
-        </div>
+        <InboxPanel
+          className="shrink-0"
+          pool={pool}
+          unscheduled={unscheduled}
+          areas={data.areas}
+          active={inboxBucket}
+          onActiveChange={setInboxBucket}
+          onCreate={(bucket, parsed) => {
+            const created = actions.createFromParsed(
+              parsed,
+              bucket === "pool" ? "pool" : "planned",
+            );
+            toast(created === 1 ? "Task added." : `${created} tasks created.`);
+          }}
+          renderTask={(task) => (
+            <DraggableTask key={task.id} task={task} areas={data.areas} {...cards} />
+          )}
+        />
 
+        {/* The strip owns the remaining height and divides it evenly. Each column
+            scrolls inside its share, so a busy Tuesday never resizes the week. */}
         <div
           key={weekStart}
           className={cn(
@@ -397,23 +429,43 @@ export function WeekView({
             slide === "left" && "slide-from-left",
           )}
         >
-          {weekDays.map((day, index) => (
-            <DayColumn
-              key={day}
-              date={day}
-              index={index}
-              tasks={tasksByDay.get(day) ?? []}
-              areas={data.areas}
-              selectedTaskId={selectedTaskId}
-              onSelect={setSelectedTaskId}
-              onOpenDetail={setDetailTaskId}
-              onToggleDone={actions.toggleDone}
-              onOpenDay={onOpenDay}
-            />
-          ))}
+          {timeBlocking ? (
+            <div className="col-span-full flex min-h-0">
+              <TimeBlockGrid
+                columns={columns}
+                tasks={weekTasks}
+                areas={data.areas}
+                dayWindow={dayWindow}
+                selectedTaskId={selectedTaskId}
+                dropPreview={dropPreview}
+                onSelect={setSelectedTaskId}
+                onOpenDetail={setDetailTaskId}
+                onToggleDone={actions.toggleDone}
+                onContextMenu={menu.open}
+                onResize={(taskId, start, end) =>
+                  actions.patchTask(taskId, {
+                    timeOfDay: formatTimeRangeValue({ start, end }),
+                    allDay: undefined,
+                  })
+                }
+              />
+            </div>
+          ) : (
+            weekDays.map((day, index) => (
+              <DayColumn
+                key={day}
+                date={day}
+                index={index}
+                tasks={tasksByDay.get(day) ?? []}
+                areas={data.areas}
+                cards={cards}
+                onOpenDay={onOpenDay}
+              />
+            ))
+          )}
         </div>
 
-        <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+        <Collapsible open={notesOpen} onOpenChange={setNotesOpen} className="shrink-0">
           <div className="rounded-lg border bg-card">
             <CollapsibleTrigger asChild>
               <button
@@ -457,6 +509,26 @@ export function WeekView({
         onClose={() => setDetailTaskId(null)}
         onSave={(taskId, patch) => actions.patchTask(taskId, patch)}
         onDelete={(taskId) => actions.removeTask(taskId)}
+      />
+
+      <FollowUpPrompt
+        task={followUpFor}
+        onClose={() => setFollowUpFor(null)}
+        onCreate={(title, date) => {
+          if (followUpFor) {
+            actions.createFollowUp(followUpFor.id, title, date);
+            toast("Follow-up created.");
+          }
+          setFollowUpFor(null);
+        }}
+      />
+
+      <TaskContextMenu
+        task={flatAllTasks.find((task) => task.id === menu.taskId) ?? null}
+        position={menu.position}
+        areas={data.areas}
+        actions={menuActions}
+        onClose={menu.close}
       />
 
       <DragOverlay>

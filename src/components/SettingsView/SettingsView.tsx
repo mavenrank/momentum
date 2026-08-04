@@ -15,6 +15,7 @@ import {
   seedAreas,
 } from "@/lib/areas";
 import { allTasks, createId } from "@/lib/plannerData";
+import { setPreferences, usePreferences } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 import type { Area, PlannerData } from "@/types/planner";
 
@@ -41,6 +42,7 @@ interface SettingsViewProps {
 
 export function SettingsView({ data, setData }: SettingsViewProps) {
   const { toast } = useToast();
+  const preferences = usePreferences();
   const [draftName, setDraftName] = React.useState("");
   const [draftColor, setDraftColor] = React.useState(SWATCHES[0]);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -157,6 +159,32 @@ export function SettingsView({ data, setData }: SettingsViewProps) {
           autocomplete in Quick Add.
         </p>
       </header>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Planner</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={preferences.linkTimeBlocking}
+              onChange={(event) => setPreferences({ linkTimeBlocking: event.target.checked })}
+              className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]"
+            />
+            <span className="min-w-0">
+              <span className="text-sm font-medium">
+                Link time-blocking across Today and Week
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                On, the Time-Blocking button is a mode you are in: switching lens keeps it.
+                Off, each lens remembers its own setting — useful if you plan the week as a
+                list but run the day against the clock.
+              </span>
+            </span>
+          </label>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">
@@ -282,7 +310,7 @@ export function SettingsView({ data, setData }: SettingsViewProps) {
                       {area.name}
                     </button>
 
-                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
                       #{area.name.toLowerCase()}
                     </span>
 
