@@ -1,0 +1,37 @@
+[package]
+name = "momentum"
+version = "0.6.0"
+description = "Momentum planner, wrapped in a Tauri shell"
+authors = ["Ananth"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# The desktop binary in main.rs links against this.
+name = "momentum_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.3", features = [] }
+tauri-plugin-log = "2"
+# The planner store is a folder of JSON on disk. The frontend reads and writes
+# it through the fs plugin, and points it somewhere else through the dialog one.
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+
+[profile.release]
+# Installed size is one of the numbers this experiment is judged on, so do not
+# ship a needlessly fat binary into the comparison against a browser tab.
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

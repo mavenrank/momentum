@@ -4,6 +4,33 @@ All notable changes to Momentum will be documented in this file.
 
 The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
 
+## [0.6.0] - 2026-08-04
+
+### Added
+- Added a Tauri 2 desktop shell that embeds the existing React/Vite interface
+  in the operating-system WebView and produces a compact Windows NSIS package.
+- Added a native filesystem repository using plain, deterministic JSON split by
+  task creation month, plus files for areas, habits, habit logs, weekly notes,
+  metadata, and installation-specific settings.
+- Added a native Data view card that shows the active data directory and lets
+  the user adopt or seed another folder through the system folder picker.
+- Added automated round-trip, deterministic serialisation, diff-only write,
+  deletion, and task-counter recovery tests for the Tauri store.
+- Added a repeatable Windows measurement script and a detailed evaluation of
+  installer size, startup behavior, memory cost, durability, and recovery.
+
+### Changed
+- The shared repository boundary now selects IndexedDB in browsers and the
+  filesystem backend inside Tauri without changing planner components.
+- Tauri writes changed files through temporary siblings and atomic renames, and
+  leaves unchanged month files untouched to keep sync and git diffs quiet.
+- Vite now pins the native development URL to port 5173 and ignores Rust build
+  output so the shell cannot silently attach to the wrong development server.
+
+### Security
+- Filesystem capabilities are limited to app data by default; a small Rust
+  command expands access only to a directory explicitly selected by the user.
+
 ## [0.5.0] - 2026-08-04
 
 ### Added
