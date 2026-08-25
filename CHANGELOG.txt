@@ -4,6 +4,51 @@ All notable changes to Momentum will be documented in this file.
 
 The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
 
+## [0.7.0] - 2026-08-25
+
+### Added
+- Added one typed application-command layer for tasks, journal entries, weekly
+  notes, areas, habits, maintenance, and atomic command batches. Browser, Tauri,
+  CLI, tests, and future automation now share the same domain rules.
+- Added explicit scheduling conflict policies: interactive UI operations may
+  warn, while CLI and LLM operations reject overlaps unless the caller opts in.
+  Clock intervals use half-open boundaries so adjacent blocks remain valid.
+- Added a full-store validator covering IDs and counters, dates, clock ranges,
+  area and habit references, duplicate records, dangling journal references,
+  and active time conflicts.
+- Added `scripts/momentum.ts`, a machine-readable CLI with task, journal, week,
+  area, habit, batch, inspect, audit, validation, import, and export commands.
+- Added atomic CLI writes, cross-process locking, stale-lock recovery,
+  optimistic revisions, idempotency keys, dry runs, actor attribution, and an
+  audit trail suitable for guarded LLM control.
+- Added a dependency-free Python application framework with deterministic
+  state-machine, concurrent-writer, conflict, revision, idempotency, and
+  year-scale scenarios, plus a reusable web/Tauri import generator.
+- Added a seeded load dataset spanning 2,400 tasks, 365 journal entries, 53
+  weekly notes, 13 areas, eight habits, and hundreds of habit logs.
+
+### Changed
+- Routed planner, calendar, journal, habit, settings, stale-collection, and
+  import mutations through the shared command executor instead of exposing raw
+  state setters to feature components.
+- Replaced quadratic whole-store overlap validation with a per-day interval
+  sweep. The same 1,200-task browser import measured about 24 ms after the
+  change, down from roughly ten minutes during the initial load test.
+- Accepted the Tauri experiment as a supported second distribution target and
+  carried the same command, validation, CLI, and test behavior into the shell.
+- Added `bun run check:full` to run TypeScript, lint, Bun unit tests, and Python
+  application/load tests together.
+
+### Fixed
+- Fixed journal `@T-...` references truncating device suffixes, which prevented
+  references to newly created device-tagged tasks from resolving.
+- Fixed numeric dates appearing before time ranges from causing the parser to
+  consume only the first clock value and leave the range tail in the title.
+- Fixed task-ID parsing capture groups so concurrent CLI writers retain valid,
+  monotonically advancing counters and unique IDs.
+- Fixed the standalone year generator so both direct-script and Python module
+  invocation work consistently on Windows.
+
 ## [0.6.0] - 2026-08-04
 
 ### Added

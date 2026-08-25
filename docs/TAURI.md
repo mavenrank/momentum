@@ -1,9 +1,10 @@
 # The Tauri shell
 
-An experiment on `experiment/tauri-shell`, not a migration. The browser build is
-untouched and stays the reference implementation. If the numbers at the bottom
-of this file do not justify the shell, the branch gets deleted and nothing is
-lost.
+**Status: accepted and merged into `main` on 2026-08-25.** The work began as an
+isolated `experiment/tauri-shell` worktree on 2026-08-04. The browser build
+remains supported and uses the same frontend and domain layer; Tauri is a second
+distribution target for durable filesystem storage, not a migration away from
+the web application.
 
 ## Why this exists
 
@@ -34,7 +35,7 @@ otherwise.
 ## Running it
 
 ```
-bun install          # the worktree needs its own node_modules
+bun install          # install JavaScript and Tauri CLI dependencies
 bun tauri dev        # native window, filesystem store
 bun dev              # browser, IndexedDB, exactly as before
 ```
@@ -165,8 +166,8 @@ was, and the app did not.
 
 ## Getting back out
 
-The browser build never stopped working — `bun dev` in either this worktree or
-the `momentum` checkout gives the app on IndexedDB, unchanged.
+The browser build never stopped working — `bun dev` gives the app on IndexedDB,
+while `bun tauri dev` opens the filesystem-backed native shell.
 
 To move data from the shell into a browser: Data view → **Export JSON**, then
 **Import JSON** in the browser build. Or run the CLI against the shell's folder:
@@ -175,14 +176,9 @@ To move data from the shell into a browser: Data view → **Export JSON**, then
 node scripts/momentum-data.mjs build --repo "%APPDATA%\org.mavenrank.momentum\data" --out restore.json
 ```
 
-To discard the experiment entirely:
-
-```
-git worktree remove ..\momentum-tauri-app
-git branch -D experiment/tauri-shell
-```
-
-Nothing in `main` was touched.
+The original experiment remains visible in git history as five focused commits
+followed by a non-fast-forward acceptance merge. Its reconstructed commit dates
+come from the branch reflog and file timestamps recorded on 2026-08-04.
 
 ## Verdict
 
