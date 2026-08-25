@@ -91,6 +91,13 @@ describe("times", () => {
   test("a bare number range is not a time", () => {
     expect(parse("Buy 2-4 apples").timeOfDay).toBeUndefined();
   });
+
+  test("a numeric date before a time range does not hide the range", () => {
+    const parsed = parse("Focus block 26-8-2026 9am-10am");
+    expect(parsed.scheduledDate).toBe("2026-08-26");
+    expect(parsed.timeOfDay).toBe("09:00-10:00");
+    expect(parsed.title).toBe("Focus block");
+  });
 });
 
 describe("all-day tasks", () => {

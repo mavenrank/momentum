@@ -251,14 +251,19 @@ function matchDate(input: string, today: Date, taken: Match[]): DateMatch | null
   ];
 
   for (const pattern of patterns) {
-    const match = pattern.regex.exec(input);
-    if (!match || overlaps(taken, match.index, match.index + match[0].length)) {
-      continue;
-    }
+    const regex = new RegExp(
+      pattern.regex.source,
+      pattern.regex.flags.includes("g") ? pattern.regex.flags : `${pattern.regex.flags}g`,
+    );
+    for (const match of input.matchAll(regex)) {
+      if (overlaps(taken, match.index, match.index + match[0].length)) {
+        continue;
+      }
 
-    const date = pattern.resolve(match);
-    if (date) {
-      return { start: match.index, end: match.index + match[0].length, text: match[0], date };
+      const date = pattern.resolve(match);
+      if (date) {
+        return { start: match.index, end: match.index + match[0].length, text: match[0], date };
+      }
     }
   }
 
@@ -323,14 +328,19 @@ function matchTime(input: string, taken: Match[]): TimeMatch | null {
   ];
 
   for (const pattern of patterns) {
-    const match = pattern.regex.exec(input);
-    if (!match || overlaps(taken, match.index, match.index + match[0].length)) {
-      continue;
-    }
+    const regex = new RegExp(
+      pattern.regex.source,
+      pattern.regex.flags.includes("g") ? pattern.regex.flags : `${pattern.regex.flags}g`,
+    );
+    for (const match of input.matchAll(regex)) {
+      if (overlaps(taken, match.index, match.index + match[0].length)) {
+        continue;
+      }
 
-    const time = pattern.resolve(match);
-    if (time) {
-      return { start: match.index, end: match.index + match[0].length, text: match[0], time };
+      const time = pattern.resolve(match);
+      if (time) {
+        return { start: match.index, end: match.index + match[0].length, text: match[0], time };
+      }
     }
   }
 
