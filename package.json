@@ -14,6 +14,8 @@
     "test": "bun test",
     "check": "tsc -b && eslint . && bun test",
     "momentum": "bun scripts/momentum.ts",
+    "test:application": "python -m unittest discover -s tests/application -p \"test_*.py\"",
+    "check:full": "bun run check && bun run test:application",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -24,9 +24,32 @@ bun run dev
 bun run build
 bun test
 bun run check
+bun run check:full
+bun tauri dev
 ```
 
 `bun run check` runs the typecheck, lint and tests together.
+`bun run check:full` also runs the Python application, concurrency, and
+year-scale load suite. `bun tauri dev` opens the same frontend in the native
+Tauri shell using its filesystem repository.
+
+## CLI
+
+The CLI uses the same command validation and conflict rules as the web app. Its
+file-backed store is intentionally separate from browser IndexedDB; export a
+portable backup when you want to load generated or terminal-managed data into
+the web app.
+
+```powershell
+bun run momentum -- createtask "Call mom tomorrow 6pm #personal"
+bun run momentum -- task list --date 2026-08-26
+bun run momentum -- validate
+```
+
+Pass `--json` for scripts and LLM tools. Mutations support `--dry-run`,
+`--expected-revision`, and `--idempotency-key`; scheduling conflicts are rejected
+unless `--warn-conflict` or `--allow-conflict` is explicit. See
+`bun run momentum -- help` and `scripts/README.md`.
 
 ## Sections
 
