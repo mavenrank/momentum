@@ -25,7 +25,14 @@ export function generateTaskId(
   return deviceTag ? `${base}-${deviceTag}` : base;
 }
 
-const TASK_ID_PATTERN = /^T-(\d{8})-(\d{4,})(?:-([0-9a-z]{2,4}))?$/i;
+/**
+ * Canonical task-ID body, shared by validators and text features such as
+ * journal mentions. Keeping one source prevents consumers from silently
+ * falling behind when the ID format grows.
+ */
+export const TASK_ID_SOURCE = String.raw`T-(\d{8})-(\d{4,})(?:-([0-9a-z]{2,4}))?`;
+
+const TASK_ID_PATTERN = new RegExp(`^${TASK_ID_SOURCE}$`, "i");
 
 export function isTaskId(value: string): boolean {
   return TASK_ID_PATTERN.test(value);

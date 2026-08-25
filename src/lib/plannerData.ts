@@ -184,19 +184,31 @@ export interface NewTaskInput {
   followUpOf?: string;
 }
 
+export interface AddTaskContext {
+  /** Injectable clock for deterministic application and load tests. */
+  now?: Date;
+  /** Overrides the installation tag when another adapter owns identity. */
+  deviceTag?: string;
+}
+
 /** Creates a task and files it under its creation date. Returns the new data. */
-export function addTask(data: PlannerData, input: NewTaskInput): PlannerData {
-  const now = new Date();
+export function addTask(
+  data: PlannerData,
+  input: NewTaskInput,
+  context: AddTaskContext = {},
+): PlannerData {
+  const now = context.now ?? new Date();
   const nowIso = now.toISOString();
   const homeDate = toDateKey(now);
-  const id = generateTaskId(homeDate, data.nextTaskId, getDeviceTag());
+  const id = generateTaskId(homeDate, data.nextTaskId, context.deviceTag ?? getDeviceTag());
+  const status = input.status ?? (input.scheduledDate ? "scheduled" : "pool");
 
   const task: DailyTask = {
     id,
     title: input.title.trim(),
     summary: input.summary?.trim() || undefined,
     description: input.description?.trim() || undefined,
-    status: input.status ?? (input.scheduledDate ? "scheduled" : "pool"),
+    status,
     priority: input.priority,
     area: input.area,
     scheduledDate: input.scheduledDate,
@@ -210,6 +222,7 @@ export function addTask(data: PlannerData, input: NewTaskInput): PlannerData {
     },
     createdAt: nowIso,
     updatedAt: nowIso,
+    completedAt: status === "done" ? nowIso : undefined,
   };
 
   const entry = ensureDaily(data, homeDate);
@@ -233,8 +246,9 @@ export function updateTask(
   data: PlannerData,
   taskId: string,
   patch: Partial<Omit<DailyTask, "id" | "createdAt">>,
+  now: Date = new Date(),
 ): PlannerData {
-  const nowIso = new Date().toISOString();
+  const nowIso = now.toISOString();
   const daily = { ...data.daily };
   let touched = false;
 
@@ -302,6 +316,7 @@ export function scheduleTask(
   data: PlannerData,
   taskId: string,
   date: string | undefined,
+  now: Date = new Date(),
 ): PlannerData {
   const task = findTask(data, taskId);
   if (!task) {
@@ -312,13 +327,13 @@ export function scheduleTask(
     return updateTask(data, taskId, {
       scheduledDate: undefined,
       status: task.status === "done" ? "done" : "planned",
-    });
+    }, now);
   }
 
   return updateTask(data, taskId, {
     scheduledDate: date,
     status: task.status === "done" || task.status === "doing" ? task.status : "scheduled",
-  });
+  }, now);
 }
 
 /**
@@ -326,16 +341,24 @@ export function scheduleTask(
  * marker all go, and the task drops back into the untriaged Pool. This is the
  * opposite of `scheduleTask`, which only ever clears the day.
  */
-export function returnTaskToPool(data: PlannerData, taskId: string): PlannerData {
+export function returnTaskToPool(
+  data: PlannerData,
+  taskId: string,
+  now: Date = new Date(),
+): PlannerData {
   return updateTask(data, taskId, {
     scheduledDate: undefined,
     timeOfDay: undefined,
     allDay: undefined,
     status: "pool",
-  });
+  }, now);
 }
 
-export function toggleTaskDone(data: PlannerData, taskId: string): PlannerData {
+export function toggleTaskDone(
+  data: PlannerData,
+  taskId: string,
+  now: Date = new Date(),
+): PlannerData {
   const task = findTask(data, taskId);
   if (!task) {
     return data;
@@ -344,10 +367,10 @@ export function toggleTaskDone(data: PlannerData, taskId: string): PlannerData {
   if (task.status === "done") {
     return updateTask(data, taskId, {
       status: task.scheduledDate ? "scheduled" : "planned",
-    });
+    }, now);
   }
 
-  return updateTask(data, taskId, { status: "done" });
+  return updateTask(data, taskId, { status: "done" }, now);
 }
 
 /* ----------------------------------------------------------------- areas -- */

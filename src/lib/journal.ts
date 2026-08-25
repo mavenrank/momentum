@@ -1,4 +1,9 @@
-const MENTION_PATTERN = /@(T-\d{8}-\d{4,})/g;
+import { TASK_ID_SOURCE } from "./taskId";
+
+// The negative lookahead matters: without it an invalid or newer ID can be
+// accepted as a shorter valid prefix, producing a reference that can never
+// resolve to the task the user mentioned.
+const MENTION_PATTERN = new RegExp(`@(${TASK_ID_SOURCE})(?![0-9A-Za-z-])`, "g");
 
 /** Pulls the `@T-YYYYMMDD-NNNN` mentions out of a journal note, de-duplicated. */
 export function extractTaskReferences(note: string): string[] {
