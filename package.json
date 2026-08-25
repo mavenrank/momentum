@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "momentum": "./scripts/momentum.ts"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -10,6 +13,7 @@
     "lint": "eslint .",
     "test": "bun test",
     "check": "tsc -b && eslint . && bun test",
+    "momentum": "bun scripts/momentum.ts",
     "tauri": "tauri"
   },
   "dependencies": {

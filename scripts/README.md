@@ -2,6 +2,33 @@
 
 Tooling that lives alongside the app but operates on things outside it.
 
+## `momentum.ts`
+
+A command interface over Momentum's shared application rules. It supports task,
+journal, weekly-note, area, and habit operations; JSON output; atomic batches;
+conflict policies; dry runs; optimistic revisions; idempotency keys; audit
+history; and full-store validation.
+
+```powershell
+bun scripts/momentum.ts createtask "Call mom tomorrow 6pm #personal"
+bun scripts/momentum.ts task list --date 2026-08-26 --json
+bun scripts/momentum.ts validate
+```
+
+The default store is `Momentum/cli-store.json` under the operating system's
+application-data folder. Override it with `--data <path>` or
+`MOMENTUM_DATA_PATH`. It is not the browser's IndexedDB: browser origin isolation
+makes that database unavailable to a normal terminal process. Use `export` to
+produce a portable backup for Data → Import JSON.
+
+Writes are protected by a cross-process lock, read only after the lock is held,
+and committed by temp-file replacement. A crashed or repeated automation cannot
+partially write JSON or duplicate a command carrying the same idempotency key.
+
+Run `bun scripts/momentum.ts help` for the full command list. The Python
+application and 1,200-task load suite is documented in
+`tests/application/README.md`.
+
 ## `momentum-data.mjs`
 
 Moves planner data between a browser export and a **separate private git
