@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { writeSnapshot } from "../lib/persistence/folderBackup";
 import { repository } from "../lib/persistence/repository";
 import { requestPersistentStorage } from "../lib/persistence/storagePersistence";
+import {
+  executePlannerCommand,
+  type PlannerCommand,
+  type PlannerCommandExecutor,
+  type CommandContext,
+} from "../lib/application/commands";
 import { createEmptyData } from "../lib/plannerData";
 import type { PlannerData } from "../types/planner";
 
@@ -9,7 +15,7 @@ const SAVE_DEBOUNCE_MS = 400;
 
 export interface PlannerDataApi {
   data: PlannerData;
-  setData: React.Dispatch<React.SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
   replaceData: (data: PlannerData) => void;
   loading: boolean;
   storageError: string | null;
@@ -18,6 +24,7 @@ export interface PlannerDataApi {
 
 export function usePlannerData(): PlannerDataApi {
   const [data, setData] = useState<PlannerData>(createEmptyData);
+  const dataRef = useRef(data);
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
 
@@ -39,6 +46,7 @@ export function usePlannerData(): PlannerDataApi {
         return;
       }
       skipNextSave.current = true;
+      dataRef.current = loaded;
       setData(loaded);
       setLoading(false);
     });
@@ -71,6 +79,7 @@ export function usePlannerData(): PlannerDataApi {
   useEffect(() => {
     return repository.subscribe((incoming) => {
       skipNextSave.current = true;
+      dataRef.current = incoming;
       setData(incoming);
     });
   }, []);
@@ -106,14 +115,27 @@ export function usePlannerData(): PlannerDataApi {
     };
   }, [data, loading]);
 
+  const execute = useCallback(
+    (command: PlannerCommand, context?: CommandContext) => {
+      const result = executePlannerCommand(dataRef.current, command, context);
+      if (result.ok && result.data !== dataRef.current) {
+        dataRef.current = result.data;
+        setData(result.data);
+      }
+      return result;
+    },
+    [],
+  );
+
   const replaceData = useCallback((next: PlannerData) => {
+    dataRef.current = next;
     setData(next);
   }, []);
 
   const dismissStorageError = useCallback(() => setStorageError(null), []);
 
   return useMemo(
-    () => ({ data, setData, replaceData, loading, storageError, dismissStorageError }),
-    [data, replaceData, loading, storageError, dismissStorageError],
+    () => ({ data, execute, replaceData, loading, storageError, dismissStorageError }),
+    [data, execute, replaceData, loading, storageError, dismissStorageError],
   );
 }

@@ -1,5 +1,4 @@
 import { Fragment } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -7,21 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import { addDays, formatDayHeader, formatWeekRange, getWeekDays, startOfWeekKey, toDateKey } from "@/lib/date";
-import { createId } from "@/lib/plannerData";
 import { cn } from "@/lib/utils";
 import type { Habit, PlannerData } from "@/types/planner";
 
 interface HabitsViewProps {
   data: PlannerData;
-  setData: Dispatch<SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
 }
 
-const habitColors = ["#287c76", "#a45c40", "#5b6c91", "#8a6f3d", "#6b705c"];
-
-export function HabitsView({ data, setData, selectedDate, setSelectedDate }: HabitsViewProps) {
+export function HabitsView({ data, execute, selectedDate, setSelectedDate }: HabitsViewProps) {
   const weekStart = startOfWeekKey(selectedDate);
   const weekDays = getWeekDays(weekStart);
   const activeHabits = data.habits.filter((habit) => !habit.archived);
@@ -33,28 +30,11 @@ export function HabitsView({ data, setData, selectedDate, setSelectedDate }: Hab
       return;
     }
 
-    setData((current) => ({
-      ...current,
-      habits: [
-        ...current.habits,
-        {
-          id: createId(),
-          name,
-          color: habitColors[current.habits.length % habitColors.length],
-          createdAt: selectedDate,
-          archived: false,
-        },
-      ],
-    }));
+    execute({ type: "habit.create", name, createdDate: selectedDate });
   }
 
   function archiveHabit(habitId: string) {
-    setData((current) => ({
-      ...current,
-      habits: current.habits.map((habit) =>
-        habit.id === habitId ? { ...habit, archived: true } : habit,
-      ),
-    }));
+    execute({ type: "habit.archive", habitId });
   }
 
   function isDone(habit: Habit, date: string) {
@@ -62,20 +42,7 @@ export function HabitsView({ data, setData, selectedDate, setSelectedDate }: Hab
   }
 
   function toggleHabit(habit: Habit, date: string) {
-    setData((current) => {
-      const exists = current.habitLogs.some(
-        (log) => log.habitId === habit.id && log.date === date,
-      );
-
-      return {
-        ...current,
-        habitLogs: exists
-          ? current.habitLogs.map((log) =>
-              log.habitId === habit.id && log.date === date ? { ...log, done: !log.done } : log,
-            )
-          : [...current.habitLogs, { habitId: habit.id, date, done: true }],
-      };
-    });
+    execute({ type: "habit.toggle", habitId: habit.id, date });
   }
 
   return (

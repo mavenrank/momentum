@@ -1,5 +1,4 @@
 import * as React from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,20 +16,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { TaskDetailDialog } from "../PlannerView/TaskDetailDialog";
 import { getAreaColor } from "@/lib/areas";
+import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import { addDays, formatFriendlyDate, toDateKey } from "@/lib/date";
-import { extractTaskReferences } from "@/lib/journal";
-import { allTasks, ensureDaily, updateTask, deleteTask } from "@/lib/plannerData";
+import { allTasks, ensureDaily } from "@/lib/plannerData";
 import { cn } from "@/lib/utils";
 import type { DailyTask, PlannerData } from "@/types/planner";
 
 interface JournalViewProps {
   data: PlannerData;
-  setData: Dispatch<SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
 }
 
-export function JournalView({ data, setData, selectedDate, setSelectedDate }: JournalViewProps) {
+export function JournalView({ data, execute, selectedDate, setSelectedDate }: JournalViewProps) {
   const [mentionQuery, setMentionQuery] = React.useState<string | null>(null);
   const [detailTaskId, setDetailTaskId] = React.useState<string | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -64,27 +63,7 @@ export function JournalView({ data, setData, selectedDate, setSelectedDate }: Jo
   }, [mentionQuery, tasks]);
 
   function writeNote(note: string) {
-    setData((current) => {
-      const existing = current.daily[selectedDate] ?? {
-        date: selectedDate,
-        tasks: [],
-        note: "",
-        taskReferences: [],
-      };
-
-      return {
-        ...current,
-        daily: {
-          ...current.daily,
-          [selectedDate]: {
-            ...existing,
-            note,
-            // Kept in sync on every keystroke so the seam never goes stale.
-            taskReferences: extractTaskReferences(note),
-          },
-        },
-      };
-    });
+    execute({ type: "journal.set", date: selectedDate, note });
   }
 
   function refreshMentionQuery(text: string, caret: number) {
@@ -295,8 +274,10 @@ export function JournalView({ data, setData, selectedDate, setSelectedDate }: Jo
         areas={data.areas}
         allTasks={tasks}
         onClose={() => setDetailTaskId(null)}
-        onSave={(taskId, patch) => setData((current) => updateTask(current, taskId, patch))}
-        onDelete={(taskId) => setData((current) => deleteTask(current, taskId))}
+        onSave={(taskId, patch) =>
+          execute({ type: "task.update", taskId, patch, conflictPolicy: "warn" })
+        }
+        onDelete={(taskId) => execute({ type: "task.delete", taskId })}
       />
     </div>
   );

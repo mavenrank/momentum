@@ -1,5 +1,4 @@
 import * as React from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { RollingText } from "@/components/ui/rolling-text";
 import { TaskDetailDialog } from "../PlannerView/TaskDetailDialog";
 import { useCalendarScroller } from "./useCalendarScroller";
 import { getAreaColor } from "@/lib/areas";
+import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import {
   addDays,
   formatMonth,
@@ -16,7 +16,7 @@ import {
   startOfMonthKey,
   toDateKey,
 } from "@/lib/date";
-import { allTasks, deleteTask, updateTask } from "@/lib/plannerData";
+import { allTasks } from "@/lib/plannerData";
 import { cn } from "@/lib/utils";
 import { compareByTiming } from "@/types/planner";
 import type { DailyTask, PlannerData } from "@/types/planner";
@@ -42,7 +42,7 @@ const CELL_HEADER_HEIGHT = 32;
 
 interface CalendarViewProps {
   data: PlannerData;
-  setData: Dispatch<SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   onOpenDay: (date: string) => void;
@@ -170,7 +170,7 @@ const DayCell = React.memo(function DayCell({
 
 export function CalendarView({
   data,
-  setData,
+  execute,
   selectedDate,
   setSelectedDate,
   onOpenDay,
@@ -350,8 +350,10 @@ export function CalendarView({
         areas={data.areas}
         allTasks={tasks}
         onClose={() => setDetailTaskId(null)}
-        onSave={(taskId, patch) => setData((current) => updateTask(current, taskId, patch))}
-        onDelete={(taskId) => setData((current) => deleteTask(current, taskId))}
+        onSave={(taskId, patch) =>
+          execute({ type: "task.update", taskId, patch, conflictPolicy: "warn" })
+        }
+        onDelete={(taskId) => execute({ type: "task.delete", taskId })}
       />
     </div>
   );

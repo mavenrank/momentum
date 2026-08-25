@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { addDays, toDateKey } from "../lib/date";
-import { allTasks, updateTask } from "../lib/plannerData";
+import { allTasks } from "../lib/plannerData";
+import type { PlannerCommandExecutor } from "../lib/application/commands";
 import type { PlannerData } from "../types/planner";
 
 /**
@@ -15,7 +15,7 @@ import type { PlannerData } from "../types/planner";
  */
 export function useAutoCollectStale(
   data: PlannerData,
-  setData: Dispatch<SetStateAction<PlannerData>>,
+  execute: PlannerCommandExecutor,
   enabled: boolean,
   onCollect?: (count: number) => void,
 ) {
@@ -38,16 +38,11 @@ export function useAutoCollectStale(
       return;
     }
 
-    setData((current) =>
-      stale.reduce(
-        (next, task) =>
-          updateTask(next, task.id, { status: "pool", scheduledDate: undefined }),
-        current,
-      ),
-    );
-
-    onCollect?.(stale.length);
+    const result = execute({ type: "maintenance.collectStale", today: toDateKey(new Date()) });
+    if (result.ok) {
+      onCollect?.((result.value as { count: number }).count);
+    }
     // `data` drives the check; once swept, the tasks no longer match, so this
     // settles after a single pass.
-  }, [data, setData, enabled, onCollect]);
+  }, [data, execute, enabled, onCollect]);
 }

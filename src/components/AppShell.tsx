@@ -30,11 +30,11 @@ export function AppShell() {
     [toast],
   );
 
-  useAutoCollectStale(planner.data, planner.setData, !planner.loading, announceCollected);
+  useAutoCollectStale(planner.data, planner.execute, !planner.loading, announceCollected);
 
   const shared = {
     data: planner.data,
-    setData: planner.setData,
+    execute: planner.execute,
     selectedDate,
     setSelectedDate,
   };
@@ -77,7 +77,7 @@ export function AppShell() {
               <DataView data={planner.data} replaceData={planner.replaceData} />
             ) : null}
             {mode === "settings" ? (
-              <SettingsView data={planner.data} setData={planner.setData} />
+              <SettingsView data={planner.data} execute={planner.execute} />
             ) : null}
           </div>
         )}

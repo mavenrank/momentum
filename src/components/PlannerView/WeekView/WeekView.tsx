@@ -45,11 +45,11 @@ import { ensureWeekly, poolTasks, unscheduledTasks } from "@/lib/plannerData";
 import { cn } from "@/lib/utils";
 import type { PlannerActions } from "@/hooks/usePlannerActions";
 import type { DailyTask, PlannerData } from "@/types/planner";
-import type { Dispatch, SetStateAction } from "react";
+import type { PlannerCommandExecutor } from "@/lib/application/commands";
 
 interface WeekViewProps {
   data: PlannerData;
-  setData: Dispatch<SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
   actions: PlannerActions;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
@@ -169,7 +169,7 @@ function DayColumn({
 
 export function WeekView({
   data,
-  setData,
+  execute,
   actions,
   selectedDate,
   setSelectedDate,
@@ -408,11 +408,17 @@ export function WeekView({
           active={inboxBucket}
           onActiveChange={setInboxBucket}
           onCreate={(bucket, parsed) => {
-            const created = actions.createFromParsed(
+            const result = actions.createFromParsed(
               parsed,
               bucket === "pool" ? "pool" : "planned",
             );
-            toast(created === 1 ? "Task added." : `${created} tasks created.`);
+            toast(
+              result.conflicts > 0
+                ? `${result.created} task${result.created === 1 ? "" : "s"} added with ${result.conflicts} schedule conflict${result.conflicts === 1 ? "" : "s"}.`
+                : result.created === 1
+                  ? "Task added."
+                  : `${result.created} tasks created.`,
+            );
           }}
           renderTask={(task) => (
             <DraggableTask key={task.id} task={task} areas={data.areas} {...cards} />
@@ -487,13 +493,11 @@ export function WeekView({
                   value={weeklyEntry.notes}
                   placeholder="What matters this week?"
                   onChange={(event) =>
-                    setData((current) => ({
-                      ...current,
-                      weekly: {
-                        ...current.weekly,
-                        [weekStart]: { weekStart, notes: event.target.value },
-                      },
-                    }))
+                    execute({
+                      type: "weekly.set",
+                      weekStart,
+                      notes: event.target.value,
+                    })
                   }
                 />
               </div>

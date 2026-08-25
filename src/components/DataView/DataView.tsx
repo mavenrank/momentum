@@ -17,6 +17,7 @@ import {
   supportsDirectoryPicker,
 } from "@/lib/export/logseq";
 import { allTasks, validateImport } from "@/lib/plannerData";
+import { validatePlannerData } from "@/lib/application/validateData";
 import { STATUS_LABELS, TASK_STATUSES } from "@/types/planner";
 import type { PlannerData } from "@/types/planner";
 
@@ -118,8 +119,18 @@ export function DataView({ data, replaceData }: DataViewProps) {
         setMessage("That file does not look like a Momentum backup.");
         return;
       }
+      const report = validatePlannerData(validated);
+      if (!report.valid) {
+        const first = report.issues.find((issue) => issue.severity === "error");
+        setMessage(`That backup failed validation${first ? ` — ${first.message}` : "."}`);
+        return;
+      }
       replaceData(validated);
-      setMessage("Backup imported.");
+      setMessage(
+        report.warnings > 0
+          ? `Backup imported with ${report.warnings} warning${report.warnings === 1 ? "" : "s"}.`
+          : "Backup imported.",
+      );
       toast("Backup imported.");
     } catch {
       setMessage("Could not read that JSON file.");

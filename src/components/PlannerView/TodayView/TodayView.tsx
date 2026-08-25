@@ -465,14 +465,16 @@ export function TodayView({
             <QuickAdd
               areas={data.areas}
               onCreate={(tasks) => {
-                const created = actions.createFromParsed(tasks);
+                const result = actions.createFromParsed(tasks);
                 const scheduled = tasks.filter((task) => task.scheduledDate).length;
                 toast(
-                  created === 1
-                    ? scheduled === 1
-                      ? "Task scheduled."
-                      : "Task added to the Pool."
-                    : `${created} tasks created.`,
+                  result.conflicts > 0
+                    ? `${result.created} task${result.created === 1 ? "" : "s"} created with ${result.conflicts} schedule conflict${result.conflicts === 1 ? "" : "s"}.`
+                    : result.created === 1
+                      ? scheduled === 1
+                        ? "Task scheduled."
+                        : "Task added to the Pool."
+                      : `${result.created} tasks created.`,
                 );
               }}
             />

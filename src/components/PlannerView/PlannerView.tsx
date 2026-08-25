@@ -1,15 +1,14 @@
-import type { Dispatch, SetStateAction } from "react";
-
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlannerActions } from "@/hooks/usePlannerActions";
 import { isTimeBlocking, setTimeBlocking, usePreferences } from "@/lib/preferences";
+import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import { TodayView } from "./TodayView/TodayView";
 import { WeekView } from "./WeekView/WeekView";
 import type { PlannerData, PlannerLens } from "@/types/planner";
 
 interface PlannerViewProps {
   data: PlannerData;
-  setData: Dispatch<SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   lens: PlannerLens;
@@ -19,14 +18,14 @@ interface PlannerViewProps {
 
 export function PlannerView({
   data,
-  setData,
+  execute,
   selectedDate,
   setSelectedDate,
   lens,
   setLens,
   onOpenDay,
 }: PlannerViewProps) {
-  const actions = usePlannerActions(setData);
+  const actions = usePlannerActions(execute);
   const preferences = usePreferences();
   // Owned here rather than inside a lens, so the mode survives switching between
   // them — and so the Settings toggle that links the two has one place to act on.
@@ -61,7 +60,7 @@ export function PlannerView({
       ) : (
         <WeekView
           data={data}
-          setData={setData}
+          execute={execute}
           actions={actions}
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}

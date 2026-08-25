@@ -1,5 +1,4 @@
 import * as React from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { ArchiveRestore, Check, Palette, Plus, Trash2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +11,9 @@ import {
   findArea,
   getAreaColor,
   nextCustomAreaColor,
-  seedAreas,
 } from "@/lib/areas";
-import { allTasks, createId } from "@/lib/plannerData";
+import type { PlannerCommandExecutor } from "@/lib/application/commands";
+import { allTasks } from "@/lib/plannerData";
 import { setPreferences, usePreferences } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 import type { Area, PlannerData } from "@/types/planner";
@@ -37,10 +36,10 @@ const SWATCHES = [
 
 interface SettingsViewProps {
   data: PlannerData;
-  setData: Dispatch<SetStateAction<PlannerData>>;
+  execute: PlannerCommandExecutor;
 }
 
-export function SettingsView({ data, setData }: SettingsViewProps) {
+export function SettingsView({ data, execute }: SettingsViewProps) {
   const { toast } = useToast();
   const preferences = usePreferences();
   const [draftName, setDraftName] = React.useState("");
@@ -75,30 +74,22 @@ export function SettingsView({ data, setData }: SettingsViewProps) {
       return;
     }
 
-    setData((current) => ({
-      ...current,
-      areas: [
-        ...current.areas,
-        {
-          id: createId(),
-          name,
-          color: draftColor,
-          createdAt: new Date().toISOString(),
-          archived: false,
-        },
-      ],
-    }));
+    const result = execute({ type: "area.create", name, color: draftColor });
+    if (!result.ok) {
+      toast(result.error.message, "error");
+      return;
+    }
 
     setDraftName("");
     setDraftColor(nextCustomAreaColor(data.areas.length + 1));
     toast(`Area “${name}” added.`);
   }
 
-  function patchArea(areaId: string, patch: Partial<Area>) {
-    setData((current) => ({
-      ...current,
-      areas: current.areas.map((area) => (area.id === areaId ? { ...area, ...patch } : area)),
-    }));
+  function patchArea(
+    areaId: string,
+    patch: Partial<Pick<Area, "name" | "color" | "archived">>,
+  ) {
+    execute({ type: "area.update", areaId, patch });
   }
 
   function renameArea(area: Area, nextName: string) {
@@ -113,40 +104,17 @@ export function SettingsView({ data, setData }: SettingsViewProps) {
       return;
     }
 
-    // Tasks store the area by name, so a rename has to carry them along.
-    setData((current) => ({
-      ...current,
-      areas: current.areas.map((entry) =>
-        entry.id === area.id ? { ...entry, name } : entry,
-      ),
-      daily: Object.fromEntries(
-        Object.entries(current.daily).map(([date, entry]) => [
-          date,
-          {
-            ...entry,
-            tasks: entry.tasks.map((task) =>
-              task.area?.toLowerCase() === area.name.toLowerCase()
-                ? { ...task, area: name }
-                : task,
-            ),
-          },
-        ]),
-      ),
-    }));
+    const result = execute({ type: "area.update", areaId: area.id, patch: { name } });
+    if (!result.ok) {
+      toast(result.error.message, "error");
+      return;
+    }
 
     toast(`Renamed to “${name}”.`);
   }
 
   function restoreDefaults() {
-    setData((current) => ({
-      ...current,
-      areas: [
-        ...current.areas,
-        ...seedAreas(createId, new Date().toISOString()).filter(
-          (seed) => !findArea(current.areas, seed.name),
-        ),
-      ],
-    }));
+    execute({ type: "area.restoreDefaults" });
     toast("Default areas restored.");
   }
 
