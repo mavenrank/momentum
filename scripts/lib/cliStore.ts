@@ -3,6 +3,7 @@ import { mkdir, open, readFile, rename, stat, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import { createEmptyData, normalizePlannerData } from "../../src/lib/plannerData";
+import { CURRENT_VERSION, runMigrations } from "../../src/lib/persistence/migrations";
 import type { PlannerData } from "../../src/types/planner";
 
 export const CLI_STORE_FORMAT = "momentum-cli-store";
@@ -74,11 +75,12 @@ export async function readCliStore(path: string): Promise<CliStore> {
     if (envelope.version !== CLI_STORE_VERSION || !isPlannerData(envelope.data)) {
       throw new Error("Unsupported or malformed Momentum CLI store.");
     }
+    if (envelope.data.version > CURRENT_VERSION) throw new Error("Unsupported future planner schema.");
     return {
       format: CLI_STORE_FORMAT,
       version: CLI_STORE_VERSION,
       revision: Number.isInteger(envelope.revision) ? Number(envelope.revision) : 0,
-      data: normalizePlannerData(envelope.data),
+      data: normalizePlannerData(runMigrations(envelope.data as unknown as Record<string, unknown>) as unknown as PlannerData),
       audit: Array.isArray(envelope.audit) ? envelope.audit : [],
       idempotency:
         envelope.idempotency && typeof envelope.idempotency === "object"
@@ -89,7 +91,7 @@ export async function readCliStore(path: string): Promise<CliStore> {
 
   // A portable Momentum backup can be used directly as the starting point.
   if (isPlannerData(parsed)) {
-    return { ...createCliStore(), data: normalizePlannerData(parsed) };
+    return { ...createCliStore(), data: normalizePlannerData(runMigrations(parsed as unknown as Record<string, unknown>) as unknown as PlannerData) };
   }
 
   throw new Error("File is neither a Momentum CLI store nor a Momentum backup.");

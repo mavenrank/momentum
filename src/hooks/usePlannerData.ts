@@ -9,6 +9,7 @@ import {
   type CommandContext,
 } from "../lib/application/commands";
 import { createEmptyData } from "../lib/plannerData";
+import { consolidateDuplicateDomains } from "../lib/organization";
 import type { PlannerData } from "../types/planner";
 
 const SAVE_DEBOUNCE_MS = 400;
@@ -41,9 +42,14 @@ export function usePlannerData(): PlannerDataApi {
     // nothing but the promise.
     void requestPersistentStorage();
 
-    repository.load().then((loaded) => {
+    repository.load().then(async (loaded) => {
       if (cancelled) {
         return;
+      }
+      const consolidated = consolidateDuplicateDomains(loaded);
+      if (consolidated !== loaded) {
+        await repository.save(consolidated);
+        loaded = consolidated;
       }
       skipNextSave.current = true;
       dataRef.current = loaded;
@@ -69,7 +75,7 @@ export function usePlannerData(): PlannerDataApi {
             : "Unknown error.";
 
       setStorageError(
-        `Momentum could not write to browser storage — ${detail} Your work is safe in this tab, but it is not being saved. Export a backup from the Data view.`,
+        `Momentum could not write to browser storage — ${detail} Your work is safe in this tab, but it is not being saved. Export a backup from Settings → Data.`,
       );
     });
   }, []);

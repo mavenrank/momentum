@@ -28,12 +28,14 @@ function task(id: string, overrides: Partial<DailyTask> = {}): DailyTask {
 
 function data(overrides: Partial<PlannerData> = {}): PlannerData {
   return {
-    version: 2,
+    version: 4,
     daily: {},
     weekly: {},
     habits: [],
     habitLogs: [],
-    areas: [{ id: "a1", name: "Work", color: "#287c76", createdAt: NOW, archived: false }],
+    domains: [{ id: "d1", name: "Work", color: "#287c76", createdAt: NOW, archived: false }],
+    areas: [{ id: "a1", name: "General", domainId: "d1", color: "#287c76", createdAt: NOW, archived: false }],
+    pursuits: [],
     nextTaskId: 1,
     updatedAt: NOW,
     ...overrides,
@@ -58,7 +60,9 @@ function parse(files: Map<string, string>): StoreContents {
 
   return {
     meta: read(META_FILE, null),
+    domains: read("domains.json", []),
     areas: read("areas.json", []),
+    pursuits: read("pursuits.json", []),
     habits: read("habits.json", []),
     habitLogs: read("habit-logs.json", []),
     weekly: read("weeks.json", {}),
@@ -144,13 +148,14 @@ describe("round trip", () => {
       daily: {
         "2026-08-04": {
           date: "2026-08-04",
-          tasks: [task("T-20260804-0001", { title: "Ship it", status: "doing" })],
+          tasks: [task("T-20260804-0001", { title: "Ship it", status: "doing", area: "a1", pursuitId: "p1" })],
           note: "Started on the shell.",
           taskReferences: ["T-20260804-0001"],
         },
       },
       weekly: { "2026-08-03": { weekStart: "2026-08-03", notes: "Quiet week" } },
       habitLogs: [{ habitId: "h1", date: "2026-08-04", done: true }],
+      pursuits: [{ id: "p1", name: "Launch", homeAreaId: "a1", participatingAreaIds: [], status: "active", createdAt: NOW, updatedAt: NOW }],
       nextTaskId: 2,
     });
 
@@ -163,7 +168,9 @@ describe("round trip", () => {
     expect(restored.daily["2026-08-04"].taskReferences).toEqual(["T-20260804-0001"]);
     expect(restored.weekly["2026-08-03"].notes).toBe("Quiet week");
     expect(restored.habitLogs).toEqual([{ habitId: "h1", date: "2026-08-04", done: true }]);
-    expect(restored.areas.map((area) => area.name)).toContain("Work");
+    expect(restored.domains.map((domain) => domain.name)).toContain("Work");
+    expect(restored.pursuits[0].name).toBe("Launch");
+    expect(restored.daily["2026-08-04"].tasks[0].pursuitId).toBe("p1");
   });
 
   test("rebuilds the id counter from the tasks on disk", () => {

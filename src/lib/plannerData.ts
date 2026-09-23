@@ -1,4 +1,5 @@
-import { seedAreas, sortAreas } from "./areas";
+import { sortAreas } from "./areas";
+import { seedDomains, seedOrganizedAreas } from "./organization";
 import { toDateKey } from "./date";
 import { generateTaskId, getDeviceTag, parseTaskIdCounter } from "./taskId";
 import { CURRENT_VERSION, mapPriority, mapStatus, runMigrations } from "./persistence/migrations";
@@ -18,9 +19,10 @@ export function createEmptyData(): PlannerData {
   const now = new Date();
   const nowIso = now.toISOString();
   const today = toDateKey(now);
+  const domains = seedDomains(createId, nowIso);
 
   return {
-    version: 2,
+    version: 4,
     daily: {},
     weekly: {},
     habits: [
@@ -40,7 +42,9 @@ export function createEmptyData(): PlannerData {
       },
     ],
     habitLogs: [],
-    areas: seedAreas(createId, nowIso),
+    domains,
+    areas: seedOrganizedAreas(createId, nowIso, domains),
+    pursuits: [],
     nextTaskId: 1,
     updatedAt: nowIso,
   };
@@ -78,6 +82,9 @@ function normalizeTask(task: Partial<DailyTask> & { id: string }, fallbackDate: 
     status,
     priority: mapPriority(task.priority),
     area: task.area || undefined,
+    domainId: task.domainId || undefined,
+    relatedAreaIds: Array.isArray(task.relatedAreaIds) ? [...new Set(task.relatedAreaIds)] : [],
+    pursuitId: task.pursuitId || undefined,
     scheduledDate: task.scheduledDate || undefined,
     // A time and an all-day marker are mutually exclusive; the time wins.
     timeOfDay: task.timeOfDay || undefined,
@@ -118,10 +125,12 @@ export function normalizePlannerData(input: PlannerData): PlannerData {
     ]),
   );
 
+  const domains = Array.isArray(input.domains) && input.domains.length > 0
+    ? input.domains : seedDomains(createId, now);
   const areas: Area[] = sortAreas(
     Array.isArray(input.areas) && input.areas.length > 0
       ? input.areas
-      : seedAreas(createId, now),
+      : seedOrganizedAreas(createId, now, domains),
   );
 
   // Rebuild the counter from the data so an imported backup can never mint a
@@ -131,12 +140,14 @@ export function normalizePlannerData(input: PlannerData): PlannerData {
     .reduce((max, task) => Math.max(max, parseTaskIdCounter(task.id) ?? 0), 0);
 
   return {
-    version: 2,
+    version: 4,
     daily,
     weekly,
     habits: Array.isArray(input.habits) ? input.habits : [],
     habitLogs: Array.isArray(input.habitLogs) ? input.habitLogs : [],
+    domains,
     areas,
+    pursuits: Array.isArray(input.pursuits) ? input.pursuits : [],
     nextTaskId: Math.max(input.nextTaskId ?? 1, highestCounter + 1),
     updatedAt: input.updatedAt ?? now,
   };
@@ -178,6 +189,9 @@ export interface NewTaskInput {
   status?: DailyTask["status"];
   priority?: DailyTask["priority"];
   area?: string;
+  domainId?: string;
+  relatedAreaIds?: string[];
+  pursuitId?: string;
   scheduledDate?: string;
   timeOfDay?: string;
   allDay?: boolean;
@@ -211,6 +225,9 @@ export function addTask(
     status,
     priority: input.priority,
     area: input.area,
+    domainId: input.domainId,
+    relatedAreaIds: input.relatedAreaIds ?? [],
+    pursuitId: input.pursuitId,
     scheduledDate: input.scheduledDate,
     timeOfDay: input.timeOfDay,
     allDay: input.timeOfDay ? undefined : input.allDay,
@@ -375,12 +392,12 @@ export function toggleTaskDone(
 
 /* ----------------------------------------------------------------- areas -- */
 
-export function addArea(data: PlannerData, name: string, color: string): PlannerData {
+export function addArea(data: PlannerData, name: string, color: string, domainId: string): PlannerData {
   return {
     ...data,
     areas: [
       ...data.areas,
-      { id: createId(), name: name.trim(), color, createdAt: new Date().toISOString(), archived: false },
+      { id: createId(), name: name.trim(), domainId, color, createdAt: new Date().toISOString(), archived: false },
     ],
   };
 }

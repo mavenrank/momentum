@@ -27,7 +27,8 @@ const CUSTOM_AREA_COLORS = [
   "#8f836b",
 ];
 
-export function seedAreas(createId: () => string, createdAt: string): Area[] {
+/** Legacy seed list retained for v1 backup migration only. */
+export function seedAreas(createId: () => string, createdAt: string): Array<Omit<Area, "domainId">> {
   return DEFAULT_AREA_SEEDS.map((seed) => ({
     id: createId(),
     name: seed.name,
@@ -71,7 +72,11 @@ export function findArea(areas: Area[], name: string | undefined): Area | undefi
     return undefined;
   }
   const needle = normalizeAreaName(name);
-  return areas.find((area) => normalizeAreaName(area.name) === needle);
+  return areas.find((area) => area.id === name || normalizeAreaName(area.name) === needle);
+}
+
+export function areaName(areas: Area[], areaId: string | undefined): string | undefined {
+  return findArea(areas, areaId)?.name;
 }
 
 /**
@@ -84,14 +89,19 @@ export function getAreaColor(areas: Area[], name: string | undefined): string {
     return "var(--area-default)";
   }
 
+  const area = findArea(areas, name);
+  if (!area) {
+    return "var(--area-default)";
+  }
+
   const seed = DEFAULT_AREA_SEEDS.find(
-    (candidate) => normalizeAreaName(candidate.name) === normalizeAreaName(name),
+    (candidate) => normalizeAreaName(candidate.name) === normalizeAreaName(area.name),
   );
-  if (seed) {
+  if (seed && seed.color === area.color) {
     return `var(${seed.cssVar})`;
   }
 
-  return findArea(areas, name)?.color ?? "var(--area-default)";
+  return area.color;
 }
 
 /** Fuzzy subsequence match used by the `#area` autocomplete. */

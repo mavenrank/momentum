@@ -7,13 +7,11 @@ from typing import Any, Iterable
 
 
 DEFAULT_AREAS = [
-    "College",
-    "Work",
-    "Projects",
-    "Health",
-    "Personal",
-    "Finance",
-    "Relationships",
+    "Work / General",
+    "Personal / General",
+    "Personal / Health",
+    "Personal / Finance",
+    "Personal / Relationships",
 ]
 CUSTOM_AREAS = ["Garden", "Home", "Learning", "Community", "Travel", "Creative"]
 PRIORITIES = [None, None, "must", "should", "could", "want"]
@@ -77,7 +75,7 @@ class IntervalAllocator:
 
 def area_commands() -> list[dict[str, Any]]:
     return [
-        {"type": "area.create", "name": name}
+        {"type": "area.create", "name": name, "domainId": "Personal"}
         for name in CUSTOM_AREAS
     ]
 

@@ -1,9 +1,11 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
   Area,
+  Domain,
   DailyTask,
   Habit,
   HabitLog,
+  Pursuit,
   WeeklyEntry,
 } from "../../types/planner";
 
@@ -45,7 +47,9 @@ export interface DailyNoteRow extends SyncFields {
 
 export type WeeklyRow = WeeklyEntry & SyncFields;
 export type AreaRow = Area & SyncFields;
+export type DomainRow = Domain & SyncFields;
 export type HabitRow = Habit & SyncFields;
+export type PursuitRow = Pursuit & SyncFields;
 
 export interface HabitLogRow extends HabitLog, SyncFields {
   /** `${habitId}::${date}` — the compound primary key. */
@@ -59,6 +63,8 @@ export class MomentumDatabase extends Dexie {
   habits!: EntityTable<HabitRow, "id">;
   habitLogs!: EntityTable<HabitLogRow, "id">;
   areas!: EntityTable<AreaRow, "id">;
+  domains!: EntityTable<DomainRow, "id">;
+  pursuits!: EntityTable<PursuitRow, "id">;
   meta!: EntityTable<MetaRow, "key">;
 
   constructor() {
@@ -143,6 +149,17 @@ export class MomentumDatabase extends Dexie {
     // Separating this from the migration is what keeps the migration readable
     // and, more importantly, re-runnable: if v3 fails the data is still there.
     this.version(4).stores({ daily: null });
+
+    this.version(5).stores({
+      tasks: "id, homeDate, scheduledDate, status, area, pursuitId, updatedAt, deletedAt",
+      pursuits: "id, status, defaultAreaId, updatedAt, deletedAt",
+    });
+    this.version(6).stores({
+      tasks: "id, homeDate, scheduledDate, status, area, domainId, pursuitId, updatedAt, deletedAt",
+      areas: "id, domainId, name, archived, updatedAt, deletedAt",
+      domains: "id, name, archived, updatedAt, deletedAt",
+      pursuits: "id, status, homeAreaId, updatedAt, deletedAt",
+    });
   }
 }
 

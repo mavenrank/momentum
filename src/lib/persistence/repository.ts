@@ -5,9 +5,11 @@ import {
   habitLogKey,
   META_KEYS,
   type AreaRow,
+  type DomainRow,
   type DailyNoteRow,
   type HabitLogRow,
   type HabitRow,
+  type PursuitRow,
   type TaskRow,
   type WeeklyRow,
 } from "./db";
@@ -49,6 +51,8 @@ interface Projection {
   habits: Map<string, HabitRow>;
   habitLogs: Map<string, HabitLogRow>;
   areas: Map<string, AreaRow>;
+  domains: Map<string, DomainRow>;
+  pursuits: Map<string, PursuitRow>;
 }
 
 function project(data: PlannerData): Projection {
@@ -93,6 +97,8 @@ function project(data: PlannerData): Projection {
       data.areas.map((area) => ({ ...area, updatedAt: "" })),
       (row) => row.id,
     ),
+    domains: index(data.domains.map((domain) => ({ ...domain, updatedAt: "" })), (row) => row.id),
+    pursuits: index(data.pursuits.map((pursuit) => ({ ...pursuit, updatedAt: "" })), (row) => row.id),
   };
 }
 
@@ -104,6 +110,8 @@ function emptyProjection(): Projection {
     habits: new Map(),
     habitLogs: new Map(),
     areas: new Map(),
+    domains: new Map(),
+    pursuits: new Map(),
   };
 }
 
@@ -114,14 +122,16 @@ function live<T extends { deletedAt?: string }>(rows: T[]): T[] {
   return rows.filter((row) => !row.deletedAt);
 }
 
-async function readAll(): Promise<{ data: PlannerData; rows: Projection } | null> {
-  const [tasks, dailyNotes, weekly, habits, habitLogs, areas, meta] = await Promise.all([
+async function readAll(): Promise<{ data: PlannerData; rows: Projection; needsMigration: boolean } | null> {
+  const [tasks, dailyNotes, weekly, habits, habitLogs, areas, domains, pursuits, meta] = await Promise.all([
     db.tasks.toArray(),
     db.dailyNotes.toArray(),
     db.weekly.toArray(),
     db.habits.toArray(),
     db.habitLogs.toArray(),
     db.areas.toArray(),
+    db.domains.toArray(),
+    db.pursuits.toArray(),
     db.meta.toArray(),
   ]);
 
@@ -129,6 +139,8 @@ async function readAll(): Promise<{ data: PlannerData; rows: Projection } | null
   if (metaMap.get(META_KEYS.version) === undefined) {
     return null;
   }
+  const storedVersion = Number(metaMap.get(META_KEYS.version));
+  if (storedVersion > 4) throw new Error(`Unsupported future planner schema ${storedVersion}.`);
 
   const liveTasks = live(tasks);
   const liveNotes = live(dailyNotes);
@@ -148,21 +160,25 @@ async function readAll(): Promise<{ data: PlannerData; rows: Projection } | null
     entry.taskReferences = note.taskReferences;
   }
 
-  const data = normalizePlannerData({
-    version: 2,
+  const raw = {
+    version: storedVersion,
     daily,
     weekly: Object.fromEntries(live(weekly).map((entry) => [entry.weekStart, entry])),
     habits: live(habits),
     habitLogs: live(habitLogs).map(({ habitId, date, done }) => ({ habitId, date, done })),
     areas: live(areas),
+    domains: live(domains),
+    pursuits: live(pursuits),
     nextTaskId: (metaMap.get(META_KEYS.nextTaskId) as number) ?? 1,
     updatedAt: (metaMap.get(META_KEYS.updatedAt) as string) ?? new Date().toISOString(),
-  });
+  };
+  const data = normalizePlannerData((storedVersion < 4 ? runMigrations(raw) : raw) as PlannerData);
 
   // The snapshot keeps the rows exactly as stored, tombstones included, so the
   // next diff knows what is already marked deleted.
   return {
     data,
+    needsMigration: storedVersion < 4,
     rows: {
       tasks: index(tasks, (row) => row.id),
       dailyNotes: index(dailyNotes, (row) => row.date),
@@ -170,6 +186,8 @@ async function readAll(): Promise<{ data: PlannerData; rows: Projection } | null
       habits: index(habits, (row) => row.id),
       habitLogs: index(habitLogs, (row) => row.id),
       areas: index(areas, (row) => row.id),
+      domains: index(domains, (row) => row.id),
+      pursuits: index(pursuits, (row) => row.id),
     },
   };
 }
@@ -233,13 +251,15 @@ async function writeChanges(previous: Projection, data: PlannerData): Promise<Pr
     now,
   );
   const areas = planWrite(db.areas, previous.areas, next.areas, (row) => row.id, now);
+  const domains = planWrite(db.domains, previous.domains, next.domains, (row) => row.id, now);
+  const pursuits = planWrite(db.pursuits, previous.pursuits, next.pursuits, (row) => row.id, now);
 
-  const plans = [tasks, dailyNotes, weekly, habits, habitLogs, areas];
+  const plans = [tasks, dailyNotes, weekly, habits, habitLogs, areas, domains, pursuits];
   const touched = plans.some((plan) => plan.rows.length > 0);
 
   await db.transaction(
     "rw",
-    [db.tasks, db.dailyNotes, db.weekly, db.habits, db.habitLogs, db.areas, db.meta],
+    [db.tasks, db.dailyNotes, db.weekly, db.habits, db.habitLogs, db.areas, db.domains, db.pursuits, db.meta],
     async () => {
       await Promise.all(plans.map((plan) => plan.write()));
 
@@ -258,6 +278,8 @@ async function writeChanges(previous: Projection, data: PlannerData): Promise<Pr
     habits: habits.fold(),
     habitLogs: habitLogs.fold(),
     areas: areas.fold(),
+    domains: domains.fold(),
+    pursuits: pursuits.fold(),
   };
 }
 
@@ -267,7 +289,7 @@ async function writeChanges(previous: Projection, data: PlannerData): Promise<Pr
  */
 async function purgeTombstones(): Promise<void> {
   const cutoff = new Date(Date.now() - TOMBSTONE_TTL_DAYS * 86_400_000).toISOString();
-  const tables: Table[] = [db.tasks, db.dailyNotes, db.weekly, db.habits, db.habitLogs, db.areas];
+  const tables: Table[] = [db.tasks, db.dailyNotes, db.weekly, db.habits, db.habitLogs, db.areas, db.domains, db.pursuits];
 
   await Promise.all(
     tables.map((table) =>
@@ -333,6 +355,7 @@ export function createRepository(): Repository {
 
   // What the database held after the last read or write by this tab.
   let snapshot = emptyProjection();
+  let readable = true;
 
   const channel =
     typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(CHANNEL_NAME);
@@ -368,7 +391,9 @@ export function createRepository(): Repository {
 
         const existing = await readAll();
         if (existing) {
-          snapshot = existing.rows;
+          snapshot = existing.needsMigration
+            ? await writeChanges(existing.rows, existing.data)
+            : existing.rows;
           return existing.data;
         }
 
@@ -382,6 +407,7 @@ export function createRepository(): Repository {
         snapshot = await writeChanges(emptyProjection(), empty);
         return empty;
       } catch (error) {
+        readable = false;
         console.error("Momentum: could not read from IndexedDB.", error);
         reportQuotaError(error);
         return createEmptyData();
@@ -389,6 +415,7 @@ export function createRepository(): Repository {
     },
 
     async save(data) {
+      if (!readable) return;
       try {
         snapshot = await writeChanges(snapshot, data);
         channel?.postMessage({ source: tabId, data });

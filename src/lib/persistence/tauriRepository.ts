@@ -13,10 +13,12 @@ import {
 
 import {
   AREAS_FILE,
+  DOMAINS_FILE,
   HABITS_FILE,
   HABIT_LOGS_FILE,
   META_FILE,
   MONTHS_DIR,
+  PURSUITS_FILE,
   WEEKS_FILE,
   assemble,
   diffFiles,
@@ -29,7 +31,7 @@ import {
 import type { QuotaErrorHandler, Repository } from "./repository";
 import { createEmptyData } from "../plannerData";
 import { createDeviceTag, setDeviceTag } from "../taskId";
-import type { Area, Habit, HabitLog, PlannerData, WeeklyEntry } from "../../types/planner";
+import type { Area, Domain, Habit, HabitLog, PlannerData, Pursuit, WeeklyEntry } from "../../types/planner";
 
 /**
  * A `Repository` backed by a folder of JSON on the real filesystem.
@@ -176,6 +178,8 @@ async function readStore(dataDir: string): Promise<StoreContents> {
   return {
     meta: await readJsonFile<MetaFile | null>(await join(dataDir, META_FILE), null),
     areas: await readJsonFile<Area[]>(await join(dataDir, AREAS_FILE), []),
+    domains: await readJsonFile<Domain[]>(await join(dataDir, DOMAINS_FILE), []),
+    pursuits: await readJsonFile<Pursuit[]>(await join(dataDir, PURSUITS_FILE), []),
     habits: await readJsonFile<Habit[]>(await join(dataDir, HABITS_FILE), []),
     habitLogs: await readJsonFile<HabitLog[]>(await join(dataDir, HABIT_LOGS_FILE), []),
     weekly: await readJsonFile<Record<string, WeeklyEntry>>(await join(dataDir, WEEKS_FILE), {}),
@@ -241,6 +245,9 @@ export function createTauriRepository(): Repository {
         await ensureLayout(dataDir);
 
         const contents = await readStore(dataDir);
+        if (contents.meta && contents.meta.version > 4) {
+          throw new Error(`Unsupported future planner schema ${contents.meta.version}.`);
+        }
 
         if (!contents.meta) {
           // Nothing here yet — seed the folder rather than leave the app
@@ -251,12 +258,17 @@ export function createTauriRepository(): Repository {
         }
 
         const data = assemble(contents);
+        if (contents.meta.version < 4) {
+          snapshot = await writeStore(dataDir, new Map(), data);
+          return data;
+        }
         // The baseline is what *we* would have written, not the bytes on disk.
         // If the folder was last touched by the CLI or by hand, the first save
         // normalises it; every save after that is a true diff.
         snapshot = projectToFiles(data);
         return data;
       } catch (error) {
+        dataDir = null;
         console.error("Momentum: could not read the planner folder.", error);
         report(error);
         return createEmptyData();

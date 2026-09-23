@@ -25,7 +25,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 
 /* ------------------------------------------------------------------ util -- */
 
@@ -104,6 +104,8 @@ const layout = (repo) => ({
   months: join(repo, "months"),
   meta: join(repo, "meta.json"),
   areas: join(repo, "areas.json"),
+  domains: join(repo, "domains.json"),
+  pursuits: join(repo, "pursuits.json"),
   habits: join(repo, "habits.json"),
   habitLogs: join(repo, "habit-logs.json"),
   weeks: join(repo, "weeks.json"),
@@ -169,6 +171,8 @@ async function commandImport(exportPath, repo, options) {
 
   const singles = [
     [paths.areas, data.areas ?? []],
+    [paths.domains, data.domains ?? []],
+    [paths.pursuits, data.pursuits ?? []],
     [paths.habits, data.habits ?? []],
     [paths.habitLogs, data.habitLogs ?? []],
     [paths.weeks, data.weekly ?? {}],
@@ -249,6 +253,8 @@ async function commandBuild(repo, outPath) {
     habits: existsSync(paths.habits) ? await readJson(paths.habits) : [],
     habitLogs: existsSync(paths.habitLogs) ? await readJson(paths.habitLogs) : [],
     areas: existsSync(paths.areas) ? await readJson(paths.areas) : [],
+    domains: existsSync(paths.domains) ? await readJson(paths.domains) : [],
+    pursuits: existsSync(paths.pursuits) ? await readJson(paths.pursuits) : [],
     nextTaskId: meta.nextTaskId ?? 1,
     updatedAt: meta.updatedAt ?? new Date().toISOString(),
   };
@@ -330,7 +336,8 @@ code, and no code lives here.
 | Path | Contents |
 | --- | --- |
 | \`meta.json\` | Schema version, the task-ID counter, last update time |
-| \`areas.json\` | Areas and their colours |
+| \`domains.json\` | Broad Domains and their colours |
+| \`areas.json\` | Areas and their Domain |
 | \`habits.json\` | Habit definitions |
 | \`habit-logs.json\` | Daily habit ticks |
 | \`weeks.json\` | Weekly notes, keyed by week start |

@@ -14,6 +14,7 @@ import {
   type TaskPatch,
 } from "../src/lib/application/commands";
 import { validatePlannerData } from "../src/lib/application/validateData";
+import { areaPath, resolveArea, resolveDomain } from "../src/lib/organization";
 import { parseTaskLine } from "../src/lib/nlp/taskParser";
 import { allTasks, normalizePlannerData, validateImport } from "../src/lib/plannerData";
 import {
@@ -39,6 +40,11 @@ const BOOLEAN_FLAGS = new Set([
   "json",
   "stdin",
   "help",
+  "clear-area",
+  "clear-domain",
+  "clear-related-areas",
+  "primary-only",
+  "clear-pursuit",
 ]);
 
 interface ParsedArgs {
@@ -112,6 +118,11 @@ function requireValue(args: ParsedArgs, name: string): string {
     throw new CliError("MISSING_ARGUMENT", `--${name} is required.`);
   }
   return value;
+}
+
+function csvFlag(args: ParsedArgs, name: string): string[] | undefined {
+  const value = flagString(args, name);
+  return value === undefined ? undefined : value.split(",").map((part) => part.trim()).filter(Boolean);
 }
 
 function defaultDataPath(): string {
@@ -340,6 +351,9 @@ function taskCreateCommand(args: ParsedArgs, offset: number): PlannerCommand {
       timeOfDay: allDay ? undefined : timeOfDay,
       allDay: allDay || undefined,
       area: flagString(args, "area") ?? parsed.area,
+      domainId: flagString(args, "domain"),
+      relatedAreaIds: csvFlag(args, "related-areas"),
+      pursuitId: flagString(args, "pursuit"),
       priority: parsePriority(flagString(args, "priority")) ?? parsed.priority,
       status: parseStatus(flagString(args, "status")) ?? (scheduledDate ? "scheduled" : "pool"),
     },
@@ -370,6 +384,13 @@ function taskUpdateCommand(args: ParsedArgs, taskId: string): PlannerCommand {
     patch.timeOfDay = undefined;
   }
   if (area !== undefined) patch.area = area;
+  if (args.flags["clear-area"]) patch.area = undefined;
+  if (flagString(args, "domain") !== undefined) patch.domainId = flagString(args, "domain");
+  if (args.flags["clear-domain"]) patch.domainId = undefined;
+  if (csvFlag(args, "related-areas")) patch.relatedAreaIds = csvFlag(args, "related-areas");
+  if (args.flags["clear-related-areas"]) patch.relatedAreaIds = [];
+  if (flagString(args, "pursuit") !== undefined) patch.pursuitId = flagString(args, "pursuit");
+  if (args.flags["clear-pursuit"]) patch.pursuitId = undefined;
   if (priority !== undefined) patch.priority = priority;
   if (status !== undefined) patch.status = status;
   if (Object.keys(patch).length === 0) {
@@ -388,10 +409,12 @@ async function readOnly(args: ParsedArgs): Promise<CliResponse> {
       ok: true,
       command: "status",
       revision: store.revision,
-      message: `${tasks.length} tasks, ${store.data.areas.length} areas, ${store.data.habits.length} habits.`,
+      message: `${tasks.length} tasks, ${store.data.domains.length} domains, ${store.data.areas.length} areas, ${store.data.pursuits.length} pursuits, ${store.data.habits.length} habits.`,
       result: {
         tasks: tasks.length,
+        domains: store.data.domains.length,
         areas: store.data.areas.length,
+        pursuits: store.data.pursuits.length,
         habits: store.data.habits.length,
         journalDays: Object.values(store.data.daily).filter((entry) => entry.note.trim()).length,
         weeklyNotes: Object.values(store.data.weekly).filter((entry) => entry.notes.trim()).length,
@@ -439,12 +462,16 @@ async function readOnly(args: ParsedArgs): Promise<CliResponse> {
   if (scope === "task" && action === "list") {
     const date = flagString(args, "date");
     const status = parseStatus(flagString(args, "status"));
-    const area = flagString(args, "area")?.toLowerCase();
+    const areaArg = flagString(args, "area");
+    const area = areaArg ? resolveArea(store.data, areaArg) : undefined;
+    if (areaArg && !area) throw new CliError("AREA_NOT_FOUND", `Area not found: ${areaArg}.`);
+    const pursuitId = flagString(args, "pursuit");
     const selected = tasks.filter(
       (task) =>
         (!date || task.scheduledDate === date) &&
         (!status || task.status === status) &&
-        (!area || task.area?.toLowerCase() === area),
+        (!area || task.area === area.id || (!args.flags["primary-only"] && task.relatedAreaIds?.includes(area.id))) &&
+        (!pursuitId || task.pursuitId === pursuitId),
     );
     return {
       ok: true,
@@ -462,7 +489,50 @@ async function readOnly(args: ParsedArgs): Promise<CliResponse> {
   }
 
   if (scope === "area" && action === "list") {
-    return { ok: true, command: "area.list", revision: store.revision, message: `${store.data.areas.length} areas.`, result: store.data.areas };
+    return { ok: true, command: "area.list", revision: store.revision, message: `${store.data.areas.length} areas.`, result: store.data.areas.map((area) => ({ ...area, path: areaPath(store.data, area.id) })) };
+  }
+
+  if (scope === "domain" && action === "list") {
+    return { ok: true, command: "domain.list", revision: store.revision, message: `${store.data.domains.length} domains.`, result: store.data.domains };
+  }
+
+  if (scope === "domain" && action === "tasks") {
+    const domain = resolveDomain(store.data.domains, rest[0]);
+    if (!domain) throw new CliError("DOMAIN_NOT_FOUND", "Domain not found.");
+    const areaIds = new Set(store.data.areas.filter((area) => area.domainId === domain.id).map((area) => area.id));
+    const selected = tasks.filter((task) => task.domainId === domain.id || Boolean(task.area && areaIds.has(task.area)) || (!args.flags["primary-only"] && task.relatedAreaIds?.some((id) => areaIds.has(id))));
+    return { ok: true, command: "task.list", revision: store.revision, message: `${selected.length} tasks in ${domain.name}.`, result: selected };
+  }
+
+  if (scope === "area" && action === "tasks") {
+    const area = resolveArea(store.data, rest[0]);
+    if (!area) throw new CliError("AREA_NOT_FOUND", "Area not found.");
+    const selected = tasks.filter((task) => task.area === area.id || (!args.flags["primary-only"] && task.relatedAreaIds?.includes(area.id)));
+    return { ok: true, command: "task.list", revision: store.revision, message: `${selected.length} tasks in ${area.name}.`, result: selected };
+  }
+
+  if (scope === "pursuit" && action === "list") {
+    return { ok: true, command: "pursuit.list", revision: store.revision, message: `${store.data.pursuits.length} pursuits.`, result: store.data.pursuits };
+  }
+
+  if (scope === "pursuit" && action === "show") {
+    const pursuit = store.data.pursuits.find((entry) => entry.id === rest[0]);
+    if (!pursuit) throw new CliError("PURSUIT_NOT_FOUND", "Pursuit not found.");
+    const related = tasks.filter((task) => task.pursuitId === pursuit.id);
+    return { ok: true, command: "pursuit.show", revision: store.revision, message: pursuit.name, result: { pursuit, tasks: related } };
+  }
+
+  if (scope === "pursuit" && action === "tasks") {
+    const pursuit = store.data.pursuits.find((entry) => entry.id === rest[0]);
+    if (!pursuit) throw new CliError("PURSUIT_NOT_FOUND", "Pursuit not found.");
+    const status = parseStatus(flagString(args, "status"));
+    const from = flagString(args, "from");
+    const to = flagString(args, "to");
+    const selected = tasks.filter((task) => task.pursuitId === pursuit.id &&
+      (!status || task.status === status) &&
+      (!from || task.createdAt.slice(0, 10) >= from) &&
+      (!to || task.createdAt.slice(0, 10) <= to));
+    return { ok: true, command: "task.list", revision: store.revision, message: `${selected.length} tasks in ${pursuit.name}.`, result: selected };
   }
 
   if (scope === "habit" && action === "list") {
@@ -543,10 +613,28 @@ function mutationFromArgs(args: ParsedArgs): PlannerCommand | null {
   if (scope === "task" && action === "pool") return { type: "task.returnToPool", taskId: rest[0] ?? "" };
   if (scope === "journal" && action === "set") return { type: "journal.set", date: requireValue(args, "date"), note: flagString(args, "note") ?? rest.join(" ") };
   if (scope === "week" && action === "set") return { type: "weekly.set", weekStart: requireValue(args, "date"), notes: flagString(args, "note") ?? rest.join(" ") };
-  if (scope === "area" && action === "create") return { type: "area.create", name: rest.join(" ") || requireValue(args, "name"), color: flagString(args, "color") };
+  if (scope === "domain" && action === "create") return { type: "domain.create", name: rest.join(" ") || requireValue(args, "name"), color: flagString(args, "color") };
+  if (scope === "domain" && action === "consolidate") return { type: "domain.consolidateDuplicates" };
+  if (scope === "domain" && action === "rename") return { type: "domain.update", domainId: rest[0] ?? "", patch: { name: requireValue(args, "name") } };
+  if (scope === "domain" && action === "recolor") return { type: "domain.update", domainId: rest[0] ?? "", patch: { color: requireValue(args, "color") } };
+  if (scope === "domain" && action === "archive") return { type: "domain.update", domainId: rest[0] ?? "", patch: { archived: true } };
+  if (scope === "domain" && action === "restore") return { type: "domain.update", domainId: rest[0] ?? "", patch: { archived: false } };
+  if (scope === "area" && action === "create") return { type: "area.create", name: rest.join(" ") || requireValue(args, "name"), domainId: requireValue(args, "domain"), color: flagString(args, "color") };
+  if (scope === "area" && action === "move") return { type: "area.update", areaId: rest[0] ?? "", patch: { domainId: requireValue(args, "domain") } };
   if (scope === "area" && action === "rename") return { type: "area.update", areaId: rest[0] ?? "", patch: { name: requireValue(args, "name") } };
   if (scope === "area" && action === "archive") return { type: "area.update", areaId: rest[0] ?? "", patch: { archived: true } };
+  if (scope === "area" && action === "restore") return { type: "area.update", areaId: rest[0] ?? "", patch: { archived: false } };
+  if (scope === "area" && action === "recolor") return { type: "area.update", areaId: rest[0] ?? "", patch: { color: requireValue(args, "color") } };
+  if (scope === "area" && action === "merge") return { type: "area.merge", sourceId: rest[0] ?? "", targetId: rest[1] ?? "" };
   if (scope === "area" && action === "restore-defaults") return { type: "area.restoreDefaults" };
+  if (scope === "pursuit" && action === "create") return { type: "pursuit.create", name: rest.join(" ") || requireValue(args, "name"), homeAreaId: requireValue(args, "area") };
+  if (scope === "pursuit" && action === "rename") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { name: requireValue(args, "name") } };
+  if (scope === "pursuit" && action === "area") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { homeAreaId: requireValue(args, "area") } };
+  if (scope === "pursuit" && action === "areas") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { participatingAreaIds: csvFlag(args, "areas") ?? [] } };
+  if (scope === "pursuit" && action === "pause") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { status: "on_hold" } };
+  if (scope === "pursuit" && action === "resume") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { status: "active" } };
+  if (scope === "pursuit" && action === "complete") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { status: "completed" } };
+  if (scope === "pursuit" && action === "archive") return { type: "pursuit.update", pursuitId: rest[0] ?? "", patch: { status: "archived" } };
   if (scope === "habit" && action === "create") return { type: "habit.create", name: rest.join(" ") || requireValue(args, "name"), color: flagString(args, "color"), createdDate: flagString(args, "date") };
   if (scope === "habit" && action === "toggle") return { type: "habit.toggle", habitId: rest[0] ?? "", date: requireValue(args, "date") };
   if (scope === "habit" && action === "archive") return { type: "habit.archive", habitId: rest[0] ?? "" };
@@ -583,13 +671,19 @@ const HELP = `Momentum CLI — command access to the shared application rules
 
   momentum createtask "Call mom tomorrow 6pm #personal"
   momentum task create "Deep work 9am-11am must #work"
-  momentum task list [--date YYYY-MM-DD] [--status pool]
+  momentum task list [--date YYYY-MM-DD] [--status pool] [--area "Domain / Area"] [--pursuit id] [--primary-only]
   momentum task update <id> [--title ...] [--date ...] [--time ...]
+  momentum task create "Plan review" --domain Work
+  momentum task update <id> --area "Work / General" --related-areas <id>,<id>
   momentum task complete|delete|pool <id>
   momentum task schedule <id> --date YYYY-MM-DD
   momentum journal set --date YYYY-MM-DD --note "..."
   momentum week set --date YYYY-MM-DD --note "..."
-  momentum area create|list|rename|archive|restore-defaults
+  momentum domain create|list|tasks|rename|recolor|archive|restore|consolidate
+  momentum area create --domain id|name; area list|tasks|rename|move|recolor|archive|restore|merge|restore-defaults
+  momentum pursuit create "Launch" --area "Work / General"
+  momentum pursuit areas <id> --areas <participating-area-id>,<other-id>
+  momentum pursuit list|show|tasks|rename|area|pause|resume|complete|archive
   momentum habit create|list|toggle|archive
   momentum status | validate | inspect | audit
   momentum batch --file commands.json | --stdin

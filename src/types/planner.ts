@@ -2,7 +2,7 @@ export type ViewMode =
   | "planner"
   | "calendar"
   | "habits"
-  | "data"
+  | "pursuits"
   | "settings";
 /** The Planner workspace holds the two execution lenses; Calendar is top-level. */
 export type PlannerLens = "today" | "week";
@@ -10,8 +10,17 @@ export type PlannerLens = "today" | "week";
 export type TaskStatus = "pool" | "planned" | "scheduled" | "doing" | "waiting" | "done";
 export type TaskPriority = "must" | "should" | "could" | "want";
 
-/** Area name, looked up in the Areas store. */
+/** Stable area ID, looked up in the Areas store. */
 export type TaskArea = string;
+
+/** Broad context. Tasks with no Area may still belong directly to a Domain. */
+export interface Domain {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  archived: boolean;
+}
 
 export interface TaskRelationships {
   dependsOn: string[];
@@ -38,6 +47,11 @@ export interface DailyTask {
   status: TaskStatus;
   priority?: TaskPriority;
   area?: TaskArea;
+  /** Set only when the task is filed directly in a Domain, without an Area. */
+  domainId?: string;
+  /** Secondary connections; these do not change the task's primary home. */
+  relatedAreaIds?: string[];
+  pursuitId?: string;
   /** ISO date "YYYY-MM-DD". */
   scheduledDate?: string;
   /** "15:00" or "14:00-16:00". Present only on timed tasks. */
@@ -71,9 +85,23 @@ export interface WeeklyEntry {
 export interface Area {
   id: string;
   name: string;
+  domainId: string;
   color: string;
   createdAt: string;
   archived: boolean;
+}
+
+export type PursuitStatus = "active" | "on_hold" | "completed" | "archived";
+
+export interface Pursuit {
+  id: string;
+  name: string;
+  homeAreaId: string;
+  participatingAreaIds: string[];
+  status: PursuitStatus;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }
 
 export interface Habit {
@@ -91,12 +119,14 @@ export interface HabitLog {
 }
 
 export interface PlannerData {
-  version: 2;
+  version: 4;
   daily: Record<string, DailyEntry>;
   weekly: Record<string, WeeklyEntry>;
   habits: Habit[];
   habitLogs: HabitLog[];
+  domains: Domain[];
   areas: Area[];
+  pursuits: Pursuit[];
   /** Global counter behind the T-YYYYMMDD-NNNN task IDs. */
   nextTaskId: number;
   updatedAt: string;

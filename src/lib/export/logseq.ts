@@ -1,5 +1,7 @@
 import { allTasks } from "../plannerData";
-import type { DailyTask, PlannerData } from "../../types/planner";
+import { areaName } from "../areas";
+import { areaPath } from "../organization";
+import type { Area, DailyTask, Domain, PlannerData } from "../../types/planner";
 
 export interface LogseqFile {
   name: string;
@@ -15,7 +17,7 @@ function yamlString(value: string): string {
  * One markdown page per task: YAML frontmatter Logseq reads as page properties,
  * then the title, the short summary, and the long description as the body.
  */
-export function taskToMarkdown(task: DailyTask): string {
+export function taskToMarkdown(task: DailyTask, areas: Area[] = [], pursuitName?: string, domains: Domain[] = []): string {
   const frontmatter: Array<[string, string]> = [
     ["id", task.id],
     ["title", yamlString(task.title)],
@@ -26,7 +28,14 @@ export function taskToMarkdown(task: DailyTask): string {
     frontmatter.push(["priority", task.priority]);
   }
   if (task.area) {
-    frontmatter.push(["area", yamlString(task.area)]);
+    frontmatter.push(["area", yamlString(areaPath({ areas, domains }, task.area) ?? areaName(areas, task.area) ?? task.area)]);
+  }
+  const domainId = task.area ? areas.find((area) => area.id === task.area)?.domainId : task.domainId;
+  const domain = domains.find((entry) => entry.id === domainId);
+  if (domain) frontmatter.push(["domain", yamlString(domain.name)]);
+  if (task.relatedAreaIds?.length) frontmatter.push(["related-areas", yamlString(task.relatedAreaIds.map((id) => areaPath({ areas, domains }, id) ?? id).join(", "))]);
+  if (task.pursuitId) {
+    frontmatter.push(["pursuit", yamlString(pursuitName ?? task.pursuitId)]);
   }
   if (task.summary) {
     frontmatter.push(["summary", yamlString(task.summary)]);
@@ -89,7 +98,7 @@ export function buildLogseqFiles(data: PlannerData): LogseqFile[] {
   return allTasks(data)
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((task) => ({ name: `${task.id}.md`, content: taskToMarkdown(task) }));
+    .map((task) => ({ name: `${task.id}.md`, content: taskToMarkdown(task, data.areas, data.pursuits.find((pursuit) => pursuit.id === task.pursuitId)?.name, data.domains) }));
 }
 
 /** True when the browser can write to a user-chosen directory. */

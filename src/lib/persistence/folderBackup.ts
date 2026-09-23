@@ -42,7 +42,7 @@ export interface BackupStatus {
  * LibreWolf, Floorp) deliberately do not, and support only the origin-private
  * file system — which is invisible to the user and so useless as a backup. On
  * those browsers the snapshot has to leave through the downloads folder
- * instead, which is what `snapshotFilename` and the Data view's export button
+ * instead, which is what `snapshotFilename` and Settings → Data's export button
  * are for.
  */
 export function backupsSupported(): boolean {

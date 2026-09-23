@@ -1,11 +1,14 @@
 import { normalizePlannerData } from "../plannerData";
+import { runMigrations } from "./migrations";
 import type {
   Area,
   DailyEntry,
   DailyTask,
+  Domain,
   Habit,
   HabitLog,
   PlannerData,
+  Pursuit,
   WeeklyEntry,
 } from "../../types/planner";
 
@@ -17,7 +20,9 @@ import type {
  * reads and writes — a folder of plain JSON, split by month of creation:
  *
  *     meta.json          schema version, the task-ID counter, last update time
+ *     domains.json       broad Domains and their colours
  *     areas.json         areas and their colours
+ *     pursuits.json      named efforts and their lifecycle status
  *     habits.json        habit definitions
  *     habit-logs.json    daily habit ticks
  *     weeks.json         weekly notes, keyed by week start
@@ -38,6 +43,8 @@ import type {
 
 export const META_FILE = "meta.json";
 export const AREAS_FILE = "areas.json";
+export const DOMAINS_FILE = "domains.json";
+export const PURSUITS_FILE = "pursuits.json";
 export const HABITS_FILE = "habits.json";
 export const HABIT_LOGS_FILE = "habit-logs.json";
 export const WEEKS_FILE = "weeks.json";
@@ -63,6 +70,8 @@ export interface MonthFile {
 export interface StoreContents {
   meta: MetaFile | null;
   areas: Area[];
+  domains: Domain[];
+  pursuits: Pursuit[];
   habits: Habit[];
   habitLogs: HabitLog[];
   weekly: Record<string, WeeklyEntry>;
@@ -152,6 +161,8 @@ export function projectToFiles(data: PlannerData): Map<string, string> {
   }
 
   files.set(AREAS_FILE, serialise(data.areas));
+  files.set(DOMAINS_FILE, serialise(data.domains));
+  files.set(PURSUITS_FILE, serialise(data.pursuits));
   files.set(HABITS_FILE, serialise(data.habits));
   files.set(HABIT_LOGS_FILE, serialise(data.habitLogs));
   files.set(WEEKS_FILE, serialise(data.weekly));
@@ -201,16 +212,19 @@ export function assemble(contents: StoreContents): PlannerData {
   // normalize backfills defaults and, importantly, rebuilds nextTaskId from the
   // tasks actually present, so a hand-edited or half-synced folder cannot mint
   // a duplicate ID.
-  return normalizePlannerData({
-    version: 2,
+  const raw = {
+    version: contents.meta?.version ?? 4,
     daily,
     weekly: contents.weekly,
     habits: contents.habits,
     habitLogs: contents.habitLogs,
     areas: contents.areas,
+    domains: contents.domains,
+    pursuits: contents.pursuits ?? [],
     nextTaskId: contents.meta?.nextTaskId ?? 1,
     updatedAt: contents.meta?.updatedAt ?? new Date().toISOString(),
-  });
+  };
+  return normalizePlannerData((raw.version < 4 ? runMigrations(raw) : raw) as PlannerData);
 }
 
 /* ------------------------------------------------------------------ diff -- */

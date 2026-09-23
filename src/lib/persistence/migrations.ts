@@ -1,6 +1,6 @@
 import { seedAreas } from "../areas";
 import { generateTaskId } from "../taskId";
-import type { DailyEntry, DailyTask, TaskPriority, TaskStatus } from "../../types/planner";
+import type { Area, DailyEntry, DailyTask, Domain, Pursuit, TaskPriority, TaskStatus } from "../../types/planner";
 
 export interface Migration {
   from: number;
@@ -126,14 +126,97 @@ function migrateV1ToV2(input: Record<string, unknown>): Record<string, unknown> 
   };
 }
 
-export const MIGRATIONS: Migration[] = [{ from: 1, to: 2, migrate: migrateV1ToV2 }];
+/* ------------------------------------------------------------- v3 → v4 -- */
 
-export const CURRENT_VERSION = 2;
+function migrateV3ToV4(input: Record<string, unknown>): Record<string, unknown> {
+  const now = new Date().toISOString();
+  const oldAreas = (Array.isArray(input.areas) ? input.areas : []) as Area[];
+  const oldPursuits = (Array.isArray(input.pursuits) ? input.pursuits : []) as Array<Pursuit & { defaultAreaId?: string }>;
+  const oldDaily = (input.daily ?? {}) as Record<string, DailyEntry>;
+  const domains: Domain[] = [];
+  const domain = (name: string, color: string): Domain => {
+    let found = domains.find((entry) => entry.name === name);
+    if (!found) {
+      found = { id: crypto.randomUUID(), name, color, createdAt: now, archived: false };
+      domains.push(found);
+    }
+    return found;
+  };
+  const work = domain("Work", "#a45c40");
+  const personal = domain("Personal", "#8e6b8e");
+  const areas: Area[] = oldAreas.map((area) => {
+    const key = area.name.trim().toLowerCase();
+    const parent = key === "work" ? work
+      : ["personal", "health", "finance", "relationships"].includes(key) ? personal
+      : key === "college" ? domain("Education", "#287c76")
+      : domain("To organize", "#6b8f9e");
+    return { ...area, name: ["work", "personal", "college"].includes(key) ? "General" : area.name, domainId: parent.id };
+  });
+
+  const areaForLegacyValue = (value: string | undefined): Area | undefined => {
+    if (!value) return undefined;
+    const found = areas.find((area) => area.id === value)
+      ?? oldAreas.find((area) => area.name.trim().toLowerCase() === value.trim().toLowerCase());
+    if (found) return areas.find((area) => area.id === found.id);
+    const unplaced = domain("To organize", "#6b8f9e");
+    const existing = areas.find((area) => area.domainId === unplaced.id && area.name.toLowerCase() === value.trim().toLowerCase());
+    if (existing) return existing;
+    const created: Area = { id: crypto.randomUUID(), name: value.trim(), domainId: unplaced.id,
+      color: "#6b8f9e", createdAt: now, archived: false };
+    areas.push(created);
+    return created;
+  };
+
+  const daily: Record<string, DailyEntry> = Object.fromEntries(Object.entries(oldDaily).map(([date, entry]) => [
+    date, { ...entry, tasks: (entry.tasks ?? []).map((task) => ({ ...task,
+      area: areaForLegacyValue(task.area)?.id,
+      relatedAreaIds: [],
+    })) },
+  ]));
+  const tasks = Object.values(daily).flatMap((entry) => entry.tasks);
+  let placement: Area | undefined;
+  const placementArea = (): Area => {
+    if (!placement) {
+      placement = { id: crypto.randomUUID(), name: "Needs placement", domainId: domain("To organize", "#6b8f9e").id,
+        color: "#6b8f9e", createdAt: now, archived: false };
+      areas.push(placement);
+    }
+    return placement;
+  };
+  const pursuits = oldPursuits.map((pursuit) => {
+    const members = tasks.filter((task) => task.pursuitId === pursuit.id);
+    const memberAreas = [...new Set(members.map((task) => task.area).filter((id): id is string => Boolean(id)))];
+    const home = areaForLegacyValue(pursuit.defaultAreaId)
+      ?? (memberAreas.length === 1 ? areas.find((area) => area.id === memberAreas[0]) : undefined)
+      ?? placementArea();
+    for (const task of members) {
+      if (!task.area) task.area = home.id;
+    }
+    const participatingAreaIds = memberAreas.filter((id) => id !== home.id);
+    const { defaultAreaId: _legacy, ...rest } = pursuit;
+    void _legacy;
+    return { ...rest, homeAreaId: home.id, participatingAreaIds };
+  });
+
+  return { ...input, version: 4, domains, areas, pursuits, daily };
+}
+
+export const MIGRATIONS: Migration[] = [
+  { from: 1, to: 2, migrate: migrateV1ToV2 },
+  { from: 2, to: 3, migrate: (data) => ({ ...data, version: 3, pursuits: [] }) },
+  { from: 3, to: 4, migrate: migrateV3ToV4 },
+];
+
+export const CURRENT_VERSION = 4;
 
 /** Runs every registered migration needed to bring `data` up to date. */
 export function runMigrations(data: Record<string, unknown>): Record<string, unknown> {
   let current = data;
   let version = typeof current.version === "number" ? current.version : 1;
+
+  if (version > CURRENT_VERSION) {
+    throw new Error(`Unsupported future schema version ${version}`);
+  }
 
   while (version < CURRENT_VERSION) {
     const migration = MIGRATIONS.find((entry) => entry.from === version);

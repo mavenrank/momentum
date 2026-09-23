@@ -85,6 +85,37 @@ class MomentumApplicationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Generate a replayable Momentum year dataset", result.stdout)
 
+    def test_area_and_pursuit_lifecycle_through_cli(self) -> None:
+        area = self.cli.run("area", "create", "Research", "--domain", "Work")["result"]
+        pursuit = self.cli.run("pursuit", "create", "Dissertation", "--area", area["id"])["result"]
+        task = self.cli.run("task", "create", "Draft proposal", "--pursuit", pursuit["id"])["result"]
+        self.assertEqual(task["area"], area["id"])
+        self.assertEqual(task["pursuitId"], pursuit["id"])
+        personal_area = self.cli.run("area", "create", "Research", "--domain", "Personal")["result"]
+        mismatch = self.cli.run("task", "create", "Personal stream", "--area", personal_area["id"], "--pursuit", pursuit["id"], expect_ok=False)
+        self.assertEqual(mismatch["error"]["code"], "AREA_PURSUIT_MISMATCH")
+        self.cli.run("pursuit", "areas", pursuit["id"], "--areas", personal_area["id"])
+        personal_task = self.cli.run("task", "create", "Personal stream", "--area", personal_area["id"], "--pursuit", pursuit["id"])["result"]
+        self.cli.run("task", "update", task["id"], "--related-areas", personal_area["id"])
+        self.assertEqual(len(self.cli.run("area", "tasks", "Personal / Research")["result"]), 2)
+        self.assertEqual(len(self.cli.run("area", "tasks", "Personal / Research", "--primary-only")["result"]), 1)
+
+        self.cli.run("area", "rename", area["id"], "--name", "Scholarship")
+        self.assertEqual(self.cli.run("area", "tasks", "Scholarship")["result"][0]["id"], task["id"])
+        self.cli.run("area", "archive", area["id"])
+        rejected = self.cli.run("task", "create", "New research #Scholarship", expect_ok=False)
+        self.assertEqual(rejected["error"]["code"], "AREA_ARCHIVED")
+        self.cli.run("area", "restore", area["id"])
+
+        self.cli.run("pursuit", "pause", pursuit["id"])
+        rejected = self.cli.run("task", "create", "Second draft", "--pursuit", pursuit["id"], expect_ok=False)
+        self.assertEqual(rejected["error"]["code"], "PURSUIT_INACTIVE")
+        self.cli.run("task", "complete", task["id"])
+        self.cli.run("task", "complete", personal_task["id"])
+        self.cli.run("pursuit", "complete", pursuit["id"])
+        self.assertEqual(len(self.cli.run("pursuit", "tasks", pursuit["id"])["result"]), 2)
+        self.assertTrue(self.cli.validate()["valid"])
+
     def test_cross_process_lock_keeps_ids_unique(self) -> None:
         def create(index: int) -> dict:
             local = MomentumCli(self.data_path)
@@ -179,7 +210,7 @@ class MomentumApplicationTests(unittest.TestCase):
         self.assertGreaterEqual(len(final["daily"]), 365)
         self.assertGreaterEqual(len(final["weekly"]), 52)
         self.assertGreater(len(final["habitLogs"]), 500)
-        self.assertGreaterEqual(len(final["areas"]), 13)
+        self.assertGreaterEqual(len(final["areas"]), 11)
 
 
 if __name__ == "__main__":
