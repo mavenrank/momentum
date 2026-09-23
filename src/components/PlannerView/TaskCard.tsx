@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { formatTimeOfDay } from "@/lib/date";
 import { getAreaColor } from "@/lib/areas";
 import { PRIORITY_LABELS } from "@/types/planner";
-import type { Area, DailyTask, TaskPriority } from "@/types/planner";
+import type { Area, DailyTask, Domain, TaskPriority } from "@/types/planner";
 
 const PRIORITY_STYLE: Record<TaskPriority, string> = {
   must: "text-[var(--priority-must)] border-[var(--priority-must)]/40 bg-[var(--priority-must)]/10",
@@ -76,6 +76,7 @@ function PullToPoolButton({ onConfirm }: { onConfirm: () => void }) {
 export interface TaskCardProps extends React.HTMLAttributes<HTMLDivElement> {
   task: DailyTask;
   areas: Area[];
+  domains?: Domain[];
   selected?: boolean;
   /** Denser single-line layout used by the week strip. */
   compact?: boolean;
@@ -95,6 +96,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
   {
     task,
     areas,
+    domains,
     selected = false,
     compact = false,
     editing = false,
@@ -125,6 +127,10 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
 
   const done = task.status === "done";
   const dotColor = getAreaColor(areas, task.area);
+  const taskArea = areas.find((area) => area.id === task.area);
+  const areaIsAmbiguous = taskArea && areas.some((area) => area.id !== taskArea.id && area.name.toLowerCase() === taskArea.name.toLowerCase());
+  const parentDomain = domains?.find((domain) => domain.id === taskArea?.domainId);
+  const areaLabel = taskArea ? areaIsAmbiguous && parentDomain ? `${parentDomain.name} · ${taskArea.name}` : taskArea.name : "Unknown Area";
   const time = formatTimeOfDay(task.timeOfDay);
   // Nothing to pull back when the task is already untriaged and undated.
   const showPullToPool =
@@ -253,7 +259,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
               </span>
             ) : null}
             {task.area && !compact ? (
-              <span className="text-[0.6875rem] text-muted-foreground">#{task.area.toLowerCase()}</span>
+              <span className="text-[0.6875rem] text-muted-foreground" title={parentDomain ? `${parentDomain.name} / ${taskArea?.name}` : undefined}>#{areaLabel}</span>
             ) : null}
             {task.status === "waiting" ? (
               <span className="rounded border border-border px-1 py-px text-[0.6875rem] uppercase tracking-wide text-muted-foreground">

@@ -271,7 +271,9 @@ export function JournalView({ data, execute, selectedDate, setSelectedDate }: Jo
 
       <TaskDetailDialog
         task={tasks.find((task) => task.id === detailTaskId) ?? null}
+        domains={data.domains}
         areas={data.areas}
+        pursuits={data.pursuits}
         allTasks={tasks}
         onClose={() => setDetailTaskId(null)}
         onSave={(taskId, patch) =>

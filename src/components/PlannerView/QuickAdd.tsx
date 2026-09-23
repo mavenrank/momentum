@@ -3,16 +3,18 @@ import { cn } from "@/lib/utils";
 import { QuickAddFields, resolveFields } from "./QuickAddFields";
 import type { FieldOverrides } from "./QuickAddFields";
 import { fuzzyMatchAreas, getAreaColor } from "@/lib/areas";
+import { areaPath } from "@/lib/organization";
 import { parseTaskInput, parseTaskLine, toHighlightSegments } from "@/lib/nlp/taskParser";
 import type { ParsedTask } from "@/lib/nlp/taskParser";
-import type { Area } from "@/types/planner";
+import type { Area, Domain } from "@/types/planner";
 
 export interface QuickAddProps {
   areas: Area[];
+  domains: Domain[];
   placeholder?: string;
   /** Applied to every task created from this input when it parsed no date. */
   defaultDate?: string;
-  onCreate: (tasks: ParsedTask[]) => void;
+  onCreate: (tasks: ParsedTask[]) => boolean | void;
   className?: string;
   autoFocus?: boolean;
   /** Set false in dense panels where the field row would crowd the layout. */
@@ -31,6 +33,7 @@ const NO_OVERRIDES: FieldOverrides = {};
 
 export function QuickAdd({
   areas,
+  domains,
   placeholder = "Buy groceries tomorrow 3pm must #health",
   defaultDate,
   onCreate,
@@ -92,7 +95,7 @@ export function QuickAdd({
     setAreaQuery(null);
   }
 
-  function completeArea(name: string) {
+  function completeArea(area: Area) {
     const input = inputRef.current;
     if (!input) {
       return;
@@ -106,12 +109,13 @@ export function QuickAdd({
     }
 
     const tagStart = beforeCaret.length - match[1].length - 1;
-    const next = `${value.slice(0, tagStart)}#${name} ${value.slice(caret)}`;
+    const next = `${value.slice(0, tagStart)}#${area.name} ${value.slice(caret)}`;
     setValue(next);
+    setOverrides((current) => ({ ...current, area: area.id }));
     setAreaQuery(null);
 
     requestAnimationFrame(() => {
-      const position = tagStart + name.length + 2;
+      const position = tagStart + area.name.length + 2;
       input.focus();
       input.setSelectionRange(position, position);
     });
@@ -138,7 +142,8 @@ export function QuickAdd({
             scheduledDate: task.scheduledDate ?? defaultDate,
           }));
 
-    onCreate(resolved);
+    const accepted = onCreate(resolved);
+    if (accepted === false) return;
 
     setValue("");
     setAreaQuery(null);
@@ -163,19 +168,19 @@ export function QuickAdd({
       }
       if (event.key === "Tab") {
         event.preventDefault();
-        completeArea(areaMatches[areaIndex].name);
+        completeArea(areaMatches[areaIndex]);
         return;
       }
       if (event.key === "Enter") {
         // If what's typed already names an area exactly, there is nothing left
         // to complete — Enter should create the task instead of feeling stuck.
-        const alreadyComplete = areaMatches.some(
+        const alreadyComplete = areaMatches.filter(
           (area) => area.name.toLowerCase() === areaQuery.toLowerCase(),
-        );
+        ).length === 1;
 
         if (!alreadyComplete) {
           event.preventDefault();
-          completeArea(areaMatches[areaIndex].name);
+          completeArea(areaMatches[areaIndex]);
           return;
         }
 
@@ -269,7 +274,7 @@ export function QuickAdd({
           <div className="absolute z-30 mt-1 w-64 overflow-hidden rounded-md border bg-popover p-1 shadow-md">
             {areaMatches.length === 0 ? (
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                Press Enter to create the area “{areaQuery}”.
+                {domains.some((domain) => domain.name.toLowerCase() === areaQuery.toLowerCase()) ? `Press Enter to use Domain “${areaQuery}”.` : `Press Enter to create the Area “${areaQuery}”.`}
               </div>
             ) : (
               <>
@@ -279,7 +284,7 @@ export function QuickAdd({
                     type="button"
                     onMouseDown={(event) => {
                       event.preventDefault();
-                      completeArea(area.name);
+                      completeArea(area);
                     }}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
@@ -289,9 +294,9 @@ export function QuickAdd({
                     <span
                       aria-hidden
                       className="size-2 rounded-full"
-                      style={{ backgroundColor: getAreaColor(areas, area.name) }}
+                      style={{ backgroundColor: getAreaColor(areas, area.id) }}
                     />
-                    <span className="min-w-0 flex-1 truncate">{area.name}</span>
+                    <span className="min-w-0 flex-1 truncate">{areaPath({ areas, domains }, area.id)}</span>
                     {index === areaIndex ? (
                       <kbd className="shrink-0 rounded border px-1 font-mono text-[0.6875rem] text-muted-foreground">
                         Tab
@@ -317,6 +322,7 @@ export function QuickAdd({
           overrides={overrides}
           setOverrides={setOverrides}
           areas={areas}
+          domains={domains}
           defaultDate={defaultDate}
           pendingLines={pendingLines}
         />

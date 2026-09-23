@@ -405,6 +405,7 @@ export function WeekView({
           pool={pool}
           unscheduled={unscheduled}
           areas={data.areas}
+          domains={data.domains}
           active={inboxBucket}
           onActiveChange={setInboxBucket}
           onCreate={(bucket, parsed) => {
@@ -412,6 +413,7 @@ export function WeekView({
               parsed,
               bucket === "pool" ? "pool" : "planned",
             );
+            if (result.errors.length) { toast(result.errors[0], "error"); return false; }
             toast(
               result.conflicts > 0
                 ? `${result.created} task${result.created === 1 ? "" : "s"} added with ${result.conflicts} schedule conflict${result.conflicts === 1 ? "" : "s"}.`
@@ -419,6 +421,7 @@ export function WeekView({
                   ? "Task added."
                   : `${result.created} tasks created.`,
             );
+            return true;
           }}
           renderTask={(task) => (
             <DraggableTask key={task.id} task={task} areas={data.areas} {...cards} />
@@ -508,7 +511,9 @@ export function WeekView({
 
       <TaskDetailDialog
         task={flatAllTasks.find((task) => task.id === detailTaskId) ?? null}
+        domains={data.domains}
         areas={data.areas}
+        pursuits={data.pursuits}
         allTasks={flatAllTasks}
         onClose={() => setDetailTaskId(null)}
         onSave={(taskId, patch) => actions.patchTask(taskId, patch)}

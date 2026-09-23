@@ -120,15 +120,15 @@ export function TaskContextMenu({
           .map((area) => (
             <ContextMenuChip
               key={area.id}
-              active={task.area === area.name}
+              active={task.area === area.id}
               onClick={() =>
-                run(() => actions.setArea(task.id, task.area === area.name ? undefined : area.name))
+                run(() => actions.setArea(task.id, task.area === area.id ? undefined : area.id))
               }
             >
               <span
                 aria-hidden
                 className="mr-1 inline-block size-1.5 rounded-full align-middle"
-                style={{ backgroundColor: getAreaColor(areas, area.name) }}
+                style={{ backgroundColor: getAreaColor(areas, area.id) }}
               />
               {area.name}
             </ContextMenuChip>

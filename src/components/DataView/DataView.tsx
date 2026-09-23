@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { BackupFolderCard } from "./BackupFolderCard";
 import { DataFolderCard } from "./DataFolderCard";
 import { getAreaColor } from "@/lib/areas";
+import { areaPath } from "@/lib/organization";
 import { snapshotFilename } from "@/lib/persistence/folderBackup";
 import { isTauriShell } from "@/lib/persistence/tauriRepository";
 import {
@@ -24,6 +25,7 @@ import type { PlannerData } from "@/types/planner";
 interface DataViewProps {
   data: PlannerData;
   replaceData: (data: PlannerData) => void;
+  embedded?: boolean;
 }
 
 function download(content: string, filename: string, type: string) {
@@ -36,7 +38,7 @@ function download(content: string, filename: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-export function DataView({ data, replaceData }: DataViewProps) {
+export function DataView({ data, replaceData, embedded = false }: DataViewProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [message, setMessage] = React.useState("");
   const { toast } = useToast();
@@ -55,7 +57,7 @@ export function DataView({ data, replaceData }: DataViewProps) {
 
     for (const task of tasks) {
       byStatus.set(task.status, (byStatus.get(task.status) ?? 0) + 1);
-      const area = task.area ?? "Unassigned";
+      const area = areaPath(data, task.area) ?? data.domains.find((domain) => domain.id === task.domainId)?.name ?? "Unassigned";
       byArea.set(area, (byArea.get(area) ?? 0) + 1);
       if (task.summary) {
         withSummary += 1;
@@ -71,7 +73,7 @@ export function DataView({ data, replaceData }: DataViewProps) {
       withSummary,
       withDescription,
     };
-  }, [tasks]);
+  }, [tasks, data]);
 
   function exportJson() {
     download(
@@ -139,12 +141,12 @@ export function DataView({ data, replaceData }: DataViewProps) {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <header>
+      {embedded ? <p className="text-xs text-muted-foreground">Schema v{data.version} · stored {inShell ? "in a folder on disk" : "in IndexedDB"}</p> : <header>
         <h2 className="text-2xl font-semibold tracking-tight">Data</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Schema v{data.version} · stored {inShell ? "in a folder on disk" : "in IndexedDB"}
         </p>
-      </header>
+      </header>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {inShell ? (
@@ -185,7 +187,7 @@ export function DataView({ data, replaceData }: DataViewProps) {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Exports use the current v{data.version} schema. Older v1 backups are migrated
+              Exports use the current v{data.version} schema. Older v1–v3 backups are migrated
               automatically on import.
             </p>
           </CardContent>
@@ -291,10 +293,7 @@ export function DataView({ data, replaceData }: DataViewProps) {
                         aria-hidden
                         className="size-2 shrink-0 rounded-full"
                         style={{
-                          backgroundColor: getAreaColor(
-                            data.areas,
-                            area === "Unassigned" ? undefined : area,
-                          ),
+                          backgroundColor: data.domains.find((domain) => domain.name === area)?.color ?? getAreaColor(data.areas, data.areas.find((entry) => areaPath(data, entry.id) === area)?.id),
                         }}
                       />
                       <span className="min-w-0 flex-1 truncate">{area}</span>

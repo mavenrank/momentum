@@ -24,6 +24,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getAreaColor } from "@/lib/areas";
+import { areaAcceptsPursuit, areaPath } from "@/lib/organization";
+import type { PlannerCommandResult } from "@/lib/application/commands";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import {
   PRIORITY_LABELS,
@@ -37,6 +40,8 @@ import {
 import type {
   Area,
   DailyTask,
+  Domain,
+  Pursuit,
   TaskPriority,
   TaskStatus,
   TaskTiming,
@@ -58,21 +63,26 @@ const TIMING_HINTS: Record<TaskTiming, string> = {
 
 interface TaskDetailDialogProps {
   task: DailyTask | null;
+  domains: Domain[];
   areas: Area[];
+  pursuits: Pursuit[];
   allTasks: DailyTask[];
   onClose: () => void;
-  onSave: (taskId: string, patch: Partial<Omit<DailyTask, "id" | "createdAt">>) => void;
+  onSave: (taskId: string, patch: Partial<Omit<DailyTask, "id" | "createdAt">>) => PlannerCommandResult;
   onDelete: (taskId: string) => void;
 }
 
 export function TaskDetailDialog({
   task,
+  domains,
   areas,
+  pursuits,
   allTasks,
   onClose,
   onSave,
   onDelete,
 }: TaskDetailDialogProps) {
+  const { toast } = useToast();
   const [draft, setDraft] = React.useState<DailyTask | null>(task);
   // Long descriptions are rare, so the editor starts collapsed unless the task
   // already has one.
@@ -102,21 +112,29 @@ export function TaskDetailDialog({
     const stripped =
       !draft.scheduledDate && !draft.timeOfDay && !draft.allDay && draft.status === "scheduled";
 
-    onSave(draft.id, {
+    const result = onSave(draft.id, {
       title: draft.title.trim(),
       summary: draft.summary?.trim() || undefined,
       description: draft.description?.trim() || undefined,
       status: stripped ? "pool" : draft.status,
       priority: draft.priority,
       area: draft.area,
+      domainId: draft.area ? undefined : draft.domainId,
+      relatedAreaIds: draft.relatedAreaIds ?? [],
+      pursuitId: draft.pursuitId,
       scheduledDate: draft.scheduledDate,
       timeOfDay: draft.timeOfDay,
       allDay: draft.timeOfDay ? undefined : draft.allDay,
     });
+    if (!result.ok) {
+      toast(result.error.message, "error");
+      return;
+    }
     onClose();
   }
 
   const timing = taskTiming(draft);
+  const selectedDomainId = draft.area ? areas.find((area) => area.id === draft.area)?.domainId : draft.domainId;
 
   const followUps = allTasks.filter(
     (candidate) => candidate.relationships.followUpOf === draft.id,
@@ -240,10 +258,23 @@ export function TaskDetailDialog({
             </label>
 
             <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Domain</span>
+              <Select value={selectedDomainId ?? NONE} onValueChange={(value) => setDraft((current) => current ? { ...current, domainId: value === NONE ? undefined : value, area: undefined, pursuitId: undefined } : current)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent><SelectItem value={NONE}>None</SelectItem>{domains.filter((domain) => !domain.archived || domain.id === selectedDomainId).map((domain) => <SelectItem key={domain.id} value={domain.id}>{domain.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
+
+            <label className="block space-y-1">
               <span className="text-xs font-medium text-muted-foreground">Area</span>
               <Select
                 value={draft.area ?? NONE}
-                onValueChange={(value) => update("area", value === NONE ? undefined : value)}
+                onValueChange={(value) => setDraft((current) => {
+                  if (!current) return current;
+                  const areaId = value === NONE ? undefined : value;
+                  const pursuit = pursuits.find((entry) => entry.id === current.pursuitId);
+                  return { ...current, area: areaId, domainId: areaId ? undefined : selectedDomainId, pursuitId: pursuit && areaAcceptsPursuit(pursuit, areaId) ? pursuit.id : undefined };
+                })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="None" />
@@ -251,15 +282,38 @@ export function TaskDetailDialog({
                 <SelectContent>
                   <SelectItem value={NONE}>None</SelectItem>
                   {areas
-                    .filter((area) => !area.archived)
+                    .filter((area) => area.domainId === selectedDomainId && (!area.archived || area.id === draft.area))
                     .map((area) => (
-                      <SelectItem key={area.id} value={area.name}>
-                        {area.name}
+                      <SelectItem key={area.id} value={area.id}>
+                        {area.name}{area.archived ? " (archived)" : ""}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
             </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Pursuit</span>
+              <Select value={draft.pursuitId ?? NONE} onValueChange={(value) => update("pursuitId", value === NONE ? undefined : value)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None</SelectItem>
+                  {pursuits.filter((pursuit) => (pursuit.status === "active" || pursuit.id === draft.pursuitId) && areaAcceptsPursuit(pursuit, draft.area)).map((pursuit) => <SelectItem key={pursuit.id} value={pursuit.id}>{pursuit.name}{pursuit.status !== "active" ? ` (${pursuit.status.replace("_", " ")})` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </label>
+
+            <div className="space-y-1 sm:col-span-2">
+              <span className="text-xs font-medium text-muted-foreground">Related Areas</span>
+              <p className="text-xs text-muted-foreground">Keep one primary Area; add other Areas for cross cutting work.</p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {(draft.relatedAreaIds ?? []).map((id) => <button key={id} type="button" title="Remove related Area" onClick={() => update("relatedAreaIds", (draft.relatedAreaIds ?? []).filter((entry) => entry !== id))} className="rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-xs hover:bg-accent">{areaPath({ areas, domains }, id)} ×</button>)}
+                <select value="" aria-label="Add related Area" onChange={(event) => { if (event.target.value) update("relatedAreaIds", [...(draft.relatedAreaIds ?? []), event.target.value]); }} className="h-7 rounded-md border bg-background px-2 text-xs">
+                  <option value="">+ Add related Area</option>
+                  {areas.filter((area) => !area.archived && area.id !== draft.area && !draft.relatedAreaIds?.includes(area.id)).map((area) => <option key={area.id} value={area.id}>{areaPath({ areas, domains }, area.id)}</option>)}
+                </select>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-2">
               <label className="block space-y-1">

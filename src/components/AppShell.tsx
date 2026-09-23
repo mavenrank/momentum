@@ -2,10 +2,11 @@ import * as React from "react";
 
 import { TopNav } from "./TopNav";
 import { CalendarView } from "./CalendarView/CalendarView";
-import { DataView } from "./DataView/DataView";
 import { HabitsView } from "./HabitsView/HabitsView";
 import { PlannerView } from "./PlannerView/PlannerView";
+import { PursuitsView } from "./PursuitsView/PursuitsView";
 import { SettingsView } from "./SettingsView/SettingsView";
+import type { SettingsSection } from "./SettingsView/SettingsSidebar";
 import { useAutoCollectStale } from "@/hooks/useAutoCollectStale";
 import { usePlannerData } from "@/hooks/usePlannerData";
 import { useToast } from "@/components/ui/toast";
@@ -15,6 +16,7 @@ import type { PlannerLens, ViewMode } from "@/types/planner";
 
 export function AppShell() {
   const [mode, setMode] = React.useState<ViewMode>("planner");
+  const [settingsSection, setSettingsSection] = React.useState<SettingsSection>("guide");
   const [lens, setLens] = React.useState<PlannerLens>("today");
   const [selectedDate, setSelectedDate] = React.useState(() => toDateKey(new Date()));
   const planner = usePlannerData();
@@ -51,14 +53,17 @@ export function AppShell() {
         mode={mode}
         onChange={setMode}
         storageError={planner.storageError}
-        onOpenStorageError={() => setMode("data")}
+        onOpenStorageError={() => {
+          setSettingsSection("data");
+          setMode("settings");
+        }}
       />
 
       <main
         className={cn(
           "flex min-h-0 min-w-0 flex-1 flex-col",
           // The calendar owns its own scrolling and runs edge to edge.
-          mode === "calendar" ? "overflow-hidden" : "overflow-y-auto p-3",
+          mode === "calendar" || mode === "settings" ? "overflow-hidden" : "overflow-y-auto p-3",
         )}
       >
         {planner.loading ? (
@@ -71,11 +76,9 @@ export function AppShell() {
             ) : null}
             {mode === "calendar" ? <CalendarView {...shared} onOpenDay={openDay} /> : null}
             {mode === "habits" ? <HabitsView {...shared} /> : null}
-            {mode === "data" ? (
-              <DataView data={planner.data} replaceData={planner.replaceData} />
-            ) : null}
+            {mode === "pursuits" ? <PursuitsView data={planner.data} execute={planner.execute} /> : null}
             {mode === "settings" ? (
-              <SettingsView data={planner.data} execute={planner.execute} />
+              <SettingsView data={planner.data} execute={planner.execute} replaceData={planner.replaceData} section={settingsSection} onSectionChange={setSettingsSection} />
             ) : null}
           </div>
         )}

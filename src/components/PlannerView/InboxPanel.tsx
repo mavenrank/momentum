@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { QuickAdd } from "./QuickAdd";
 import { cn } from "@/lib/utils";
 import type { ParsedTask } from "@/lib/nlp/taskParser";
-import type { Area, DailyTask } from "@/types/planner";
+import type { Area, DailyTask, Domain } from "@/types/planner";
 
 export type InboxBucket = "pool" | "unscheduled";
 
@@ -37,9 +37,10 @@ interface InboxPanelProps {
   pool: DailyTask[];
   unscheduled: DailyTask[];
   areas: Area[];
+  domains: Domain[];
   active: InboxBucket;
   onActiveChange: (bucket: InboxBucket) => void;
-  onCreate: (bucket: InboxBucket, tasks: ParsedTask[]) => void;
+  onCreate: (bucket: InboxBucket, tasks: ParsedTask[]) => boolean | void;
   renderTask: (task: DailyTask) => React.ReactNode;
   className?: string;
 }
@@ -60,6 +61,7 @@ export function InboxPanel({
   pool,
   unscheduled,
   areas,
+  domains,
   active,
   onActiveChange,
   onCreate,
@@ -92,6 +94,7 @@ export function InboxPanel({
       <div className="flex min-h-0 flex-col gap-2 p-2">
         <QuickAdd
           areas={areas}
+          domains={domains}
           placeholder={bucket.placeholder}
           showPreview={false}
           onCreate={(parsed) => onCreate(active, parsed)}

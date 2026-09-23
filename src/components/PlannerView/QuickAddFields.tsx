@@ -3,12 +3,13 @@ import { CalendarDays, Clock, Flag, Hash, Inbox, RotateCcw, Sun, Type } from "lu
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getAreaColor } from "@/lib/areas";
+import { sortDomainsForDisplay } from "@/lib/organization";
 import { addDays, formatFriendlyDate, formatTimeOfDay, toDateKey } from "@/lib/date";
 import { parseTaskLine } from "@/lib/nlp/taskParser";
 import { cn } from "@/lib/utils";
 import { PRIORITY_LABELS, TASK_PRIORITIES } from "@/types/planner";
 import type { ParsedTask } from "@/lib/nlp/taskParser";
-import type { Area, TaskPriority } from "@/types/planner";
+import type { Area, Domain, TaskPriority } from "@/types/planner";
 
 /**
  * What the parser found is only ever a suggestion. An override records the
@@ -74,6 +75,7 @@ interface ChipProps {
   /** True when the user has pinned this field, so it no longer follows the text. */
   overridden?: boolean;
   onReset?: () => void;
+  popoverClassName?: string;
   children?: React.ReactNode;
 }
 
@@ -85,6 +87,7 @@ function Chip({
   tone,
   overridden,
   onReset,
+  popoverClassName,
   children,
 }: ChipProps) {
   const body = (
@@ -131,7 +134,7 @@ function Chip({
           {body}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-60 p-2">
+      <PopoverContent align="start" className={cn("w-60 p-2", popoverClassName)}>
         {children}
       </PopoverContent>
     </Popover>
@@ -165,6 +168,7 @@ interface QuickAddFieldsProps {
   overrides: FieldOverrides;
   setOverrides: React.Dispatch<React.SetStateAction<FieldOverrides>>;
   areas: Area[];
+  domains: Domain[];
   defaultDate?: string;
   /** Number of lines when a multi-line paste is pending; chips are moot then. */
   pendingLines: number;
@@ -181,6 +185,7 @@ export function QuickAddFields({
   overrides,
   setOverrides,
   areas,
+  domains,
   defaultDate,
   pendingLines,
   className,
@@ -200,9 +205,11 @@ export function QuickAddFields({
     );
   }
 
-  const areaColor = fields.area ? getAreaColor(areas, fields.area) : undefined;
-  const isNewArea = Boolean(fields.area) && !areas.some(
-    (area) => area.name.toLowerCase() === fields.area?.toLowerCase(),
+  const selectedDomain = domains.find((domain) => domain.id === fields.area || domain.name.toLowerCase() === fields.area?.toLowerCase());
+  const selectedArea = areas.find((area) => area.id === fields.area || area.name.toLowerCase() === fields.area?.toLowerCase());
+  const areaColor = selectedDomain?.color ?? (fields.area ? getAreaColor(areas, fields.area) : undefined);
+  const isNewArea = Boolean(fields.area) && !selectedDomain && !areas.some(
+    (area) => area.id === fields.area || area.name.toLowerCase() === fields.area?.toLowerCase(),
   );
 
   function set(patch: FieldOverrides) {
@@ -342,33 +349,34 @@ export function QuickAddFields({
 
       <Chip
         icon={Hash}
-        label={isNewArea ? "New area" : "Area"}
-        value={fields.area ?? "none"}
+        label={selectedDomain ? "Domain" : isNewArea ? "New area" : "Area"}
+        value={selectedDomain ? `${selectedDomain.name} only` : selectedArea ? `${domains.find((domain) => domain.id === selectedArea.domainId)?.name ?? "Area"} · ${selectedArea.name}` : fields.area ?? "none"}
         empty={!fields.area}
         tone={areaColor}
         overridden={overrides.area !== undefined}
         onReset={() => set({ area: undefined })}
+        popoverClassName="w-80"
       >
-        <div className="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
-          {areas
-            .filter((area) => !area.archived)
-            .map((area) => (
-              <PresetButton
-                key={area.id}
-                active={fields.area === area.name}
-                onClick={() => set({ area: area.name })}
-              >
-                <span
-                  aria-hidden
-                  className="mr-1 inline-block size-1.5 rounded-full align-middle"
-                  style={{ backgroundColor: getAreaColor(areas, area.name) }}
-                />
-                {area.name}
-              </PresetButton>
-            ))}
-          <PresetButton active={overrides.area === null} onClick={() => set({ area: null })}>
-            None
-          </PresetButton>
+        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+          <p className="text-[11px] text-muted-foreground">Choose a broad Domain or a specific Area within it.</p>
+          {sortDomainsForDisplay(domains).filter((domain) => !domain.archived).map((domain) => (
+            <div key={domain.id} className="border-t pt-2 first:border-t-0 first:pt-0">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+                <span className="size-2 rounded-full" style={{ backgroundColor: domain.color }} aria-hidden />
+                {domain.name}<span className="font-normal text-muted-foreground">Domain</span>
+              </div>
+              <div className="flex flex-wrap gap-1 pl-3.5">
+                <PresetButton active={fields.area === domain.id} onClick={() => set({ area: domain.id })}>Only {domain.name}</PresetButton>
+                {areas.filter((area) => !area.archived && area.domainId === domain.id).map((area) => (
+                  <PresetButton key={area.id} active={fields.area === area.id} onClick={() => set({ area: area.id })}>
+                    <span className="mr-1 inline-block size-1.5 rounded-full align-middle" style={{ backgroundColor: getAreaColor(areas, area.id) }} aria-hidden />
+                    {area.name}
+                  </PresetButton>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="border-t pt-2"><PresetButton active={overrides.area === null} onClick={() => set({ area: null })}>No Domain or Area</PresetButton></div>
         </div>
       </Chip>
     </div>

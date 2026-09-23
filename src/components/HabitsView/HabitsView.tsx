@@ -1,10 +1,11 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { COLOR_PRESETS, ColorPopover } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import { addDays, formatDayHeader, formatWeekRange, getWeekDays, startOfWeekKey, toDateKey } from "@/lib/date";
@@ -19,6 +20,7 @@ interface HabitsViewProps {
 }
 
 export function HabitsView({ data, execute, selectedDate, setSelectedDate }: HabitsViewProps) {
+  const [newHabitColor, setNewHabitColor] = useState<string>(COLOR_PRESETS[0].hex);
   const weekStart = startOfWeekKey(selectedDate);
   const weekDays = getWeekDays(weekStart);
   const activeHabits = data.habits.filter((habit) => !habit.archived);
@@ -30,7 +32,8 @@ export function HabitsView({ data, execute, selectedDate, setSelectedDate }: Hab
       return;
     }
 
-    execute({ type: "habit.create", name, createdDate: selectedDate });
+    execute({ type: "habit.create", name, color: newHabitColor, createdDate: selectedDate });
+    setNewHabitColor(COLOR_PRESETS[(data.habits.length + 1) % COLOR_PRESETS.length].hex);
   }
 
   function archiveHabit(habitId: string) {
@@ -81,7 +84,7 @@ export function HabitsView({ data, execute, selectedDate, setSelectedDate }: Hab
         </CardHeader>
         <CardContent>
           <form
-            className="flex gap-2"
+            className="flex flex-wrap items-center gap-2"
             onSubmit={(event) => {
               event.preventDefault();
               addHabit(new FormData(event.currentTarget));
@@ -89,6 +92,7 @@ export function HabitsView({ data, execute, selectedDate, setSelectedDate }: Hab
             }}
           >
             <Input name="habit" placeholder="Habit name" className="max-w-sm" />
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">Color <ColorPopover label="New habit" value={newHabitColor} onChange={setNewHabitColor} /></span>
             <Button type="submit">
               <Plus className="size-4" />
               Add

@@ -359,6 +359,7 @@ export function TodayView({
         key={task.id}
         task={task}
         areas={data.areas}
+        domains={data.domains}
         compact={options?.compact}
         selected={selectedTaskId === task.id}
         editing={editingTaskId === task.id}
@@ -464,8 +465,10 @@ export function TodayView({
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
             <QuickAdd
               areas={data.areas}
+              domains={data.domains}
               onCreate={(tasks) => {
                 const result = actions.createFromParsed(tasks);
+                if (result.errors.length) { toast(result.errors[0], "error"); return false; }
                 const scheduled = tasks.filter((task) => task.scheduledDate).length;
                 toast(
                   result.conflicts > 0
@@ -476,6 +479,7 @@ export function TodayView({
                         : "Task added to the Pool."
                       : `${result.created} tasks created.`,
                 );
+                return true;
               }}
             />
 
@@ -587,7 +591,9 @@ export function TodayView({
 
         <TaskDetailDialog
           task={flatAllTasks.find((task) => task.id === detailTaskId) ?? null}
+          domains={data.domains}
           areas={data.areas}
+          pursuits={data.pursuits}
           allTasks={flatAllTasks}
           onClose={() => setDetailTaskId(null)}
           onSave={(taskId, patch) => actions.patchTask(taskId, patch)}

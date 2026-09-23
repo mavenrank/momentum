@@ -1,17 +1,18 @@
 import { useMemo } from "react";
 import type { ParsedTask } from "../lib/nlp/taskParser";
-import type { PlannerCommandExecutor } from "../lib/application/commands";
+import type { PlannerCommandExecutor, PlannerCommandResult } from "../lib/application/commands";
 import type { DailyTask, TaskStatus } from "../types/planner";
 
 export interface TaskCreationSummary {
   created: number;
   conflicts: number;
+  errors: string[];
 }
 
 export interface PlannerActions {
   /** Creates tasks from parsed quick-add lines, minting unknown areas. */
   createFromParsed: (tasks: ParsedTask[], fallbackStatus?: TaskStatus) => TaskCreationSummary;
-  patchTask: (taskId: string, patch: Partial<Omit<DailyTask, "id" | "createdAt">>) => void;
+  patchTask: (taskId: string, patch: Partial<Omit<DailyTask, "id" | "createdAt">>) => PlannerCommandResult;
   removeTask: (taskId: string) => void;
   toggleDone: (taskId: string) => void;
   moveToDate: (taskId: string, date: string | undefined) => void;
@@ -28,11 +29,12 @@ export function usePlannerActions(
     () => ({
       createFromParsed(tasks, fallbackStatus) {
         if (tasks.length === 0) {
-          return { created: 0, conflicts: 0 };
+          return { created: 0, conflicts: 0, errors: [] };
         }
 
         let created = 0;
         let conflicts = 0;
+        const errors: string[] = [];
         for (const parsed of tasks) {
           const result = execute({
             type: "task.create",
@@ -50,13 +52,15 @@ export function usePlannerActions(
           if (result.ok) {
             created += 1;
             conflicts += result.warnings.filter((warning) => warning.code === "TIME_CONFLICT").length;
+          } else {
+            errors.push(result.error.message);
           }
         }
-        return { created, conflicts };
+        return { created, conflicts, errors };
       },
 
       patchTask(taskId, patch) {
-        execute({ type: "task.update", taskId, patch, conflictPolicy: "warn" });
+        return execute({ type: "task.update", taskId, patch, conflictPolicy: "warn" });
       },
 
       removeTask(taskId) {

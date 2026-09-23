@@ -347,7 +347,9 @@ export function CalendarView({
 
       <TaskDetailDialog
         task={tasks.find((task) => task.id === detailTaskId) ?? null}
+        domains={data.domains}
         areas={data.areas}
+        pursuits={data.pursuits}
         allTasks={tasks}
         onClose={() => setDetailTaskId(null)}
         onSave={(taskId, patch) =>

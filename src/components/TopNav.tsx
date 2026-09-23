@@ -1,12 +1,12 @@
 import {
   CalendarDays,
-  Database,
   ListChecks,
   ListTodo,
   Moon,
   Settings,
   Sun,
   TriangleAlert,
+  Waypoints,
 } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,9 +18,9 @@ const NAV_ITEMS = [
   { id: "planner", label: "Planner", icon: ListTodo },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "habits", label: "Habits", icon: ListChecks },
-  { id: "data", label: "Data", icon: Database },
+  { id: "pursuits", label: "Pursuits", icon: Waypoints },
   { id: "settings", label: "Settings", icon: Settings },
-] satisfies Array<{ id: ViewMode; label: string; icon: typeof Database }>;
+] satisfies Array<{ id: ViewMode; label: string; icon: typeof Settings }>;
 
 interface TopNavProps {
   mode: ViewMode;
