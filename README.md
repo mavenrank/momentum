@@ -1,10 +1,11 @@
 # Momentum
 
-Momentum is a lightweight planning and journaling app for personal accountability.
+Momentum is a lightweight planning app for personal accountability.
 
 It is a solo planner with local-first data, portable JSON backups, natural-language
-task capture, a continuous calendar, dynamic habits, and a journal that can
-reference tasks by ID. Future phases can add friend/accountability views without
+task capture, a continuous calendar, and dynamic habits. Journal entries and
+their task references remain in the data model, but the journal view is currently
+hidden. Future phases can add friend/accountability views without
 changing the core app shape.
 
 ## Stack
@@ -65,8 +66,6 @@ unless `--warn-conflict` or `--allow-conflict` is explicit. See
   onto month boundaries. The month and year float over the grid and roll in the
   direction of travel.
 - **Habits** — weekly matrix with add and archive.
-- **Journal** — daily entries; typing `@` opens a fuzzy task search and inserts a
-  reference that is tracked in `taskReferences`.
 - **Data** — v2 JSON export/import (v1 backups migrate on import) and a Logseq
   markdown export, one page per task.
 - **Settings** — manage areas: add, rename, recolour, archive, restore defaults.

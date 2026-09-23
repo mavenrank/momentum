@@ -4,7 +4,6 @@ import { TopNav } from "./TopNav";
 import { CalendarView } from "./CalendarView/CalendarView";
 import { DataView } from "./DataView/DataView";
 import { HabitsView } from "./HabitsView/HabitsView";
-import { JournalView } from "./JournalView/JournalView";
 import { PlannerView } from "./PlannerView/PlannerView";
 import { SettingsView } from "./SettingsView/SettingsView";
 import { useAutoCollectStale } from "@/hooks/useAutoCollectStale";
@@ -72,7 +71,6 @@ export function AppShell() {
             ) : null}
             {mode === "calendar" ? <CalendarView {...shared} onOpenDay={openDay} /> : null}
             {mode === "habits" ? <HabitsView {...shared} /> : null}
-            {mode === "journal" ? <JournalView {...shared} /> : null}
             {mode === "data" ? (
               <DataView data={planner.data} replaceData={planner.replaceData} />
             ) : null}

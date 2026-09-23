@@ -4,7 +4,6 @@ import {
   ListChecks,
   ListTodo,
   Moon,
-  NotebookPen,
   Settings,
   Sun,
   TriangleAlert,
@@ -19,7 +18,6 @@ const NAV_ITEMS = [
   { id: "planner", label: "Planner", icon: ListTodo },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "habits", label: "Habits", icon: ListChecks },
-  { id: "journal", label: "Journal", icon: NotebookPen },
   { id: "data", label: "Data", icon: Database },
   { id: "settings", label: "Settings", icon: Settings },
 ] satisfies Array<{ id: ViewMode; label: string; icon: typeof Database }>;
