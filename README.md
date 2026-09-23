@@ -44,6 +44,8 @@ the web app.
 ```powershell
 bun run momentum -- createtask "Call mom tomorrow 6pm #personal"
 bun run momentum -- task list --date 2026-08-26
+bun run momentum -- pursuit create "Dissertation" --area "Work / General"
+bun run momentum -- pursuit list --json
 bun run momentum -- validate
 ```
 
@@ -66,9 +68,13 @@ unless `--warn-conflict` or `--allow-conflict` is explicit. See
   onto month boundaries. The month and year float over the grid and roll in the
   direction of travel.
 - **Habits** — weekly matrix with add and archive.
-- **Data** — v2 JSON export/import (v1 backups migrate on import) and a Logseq
-  markdown export, one page per task.
-- **Settings** — manage areas: add, rename, recolour, archive, restore defaults.
+- **Pursuits** — browse Domains, Areas, and Pursuits in one view. An Area can hold
+  direct tasks and multiple Pursuits. A Pursuit has one home Area and can also
+  participate in other Areas. Pursuits can be held, completed, or archived.
+- **Settings** — a collapsible sidebar for the organization guide, Domain, Area,
+  and Pursuit management, customization, and Data. Data contains v4 JSON
+  export/import (v1–v3 backups migrate on import) and Logseq export, one page
+  per task.
 
 ## Quick Add
 
@@ -88,6 +94,16 @@ Buy groceries tomorrow 3pm must #health
 - **Times** — `3pm`, `9:30am`, `15:00`, `2-4pm`, `9am-5pm`.
 
 A task with no date goes to the Pool. Paste a list to create tasks in bulk.
+
+Domains describe broad parts of life, such as Work and Personal. Areas describe
+ongoing responsibilities within a Domain. Pursuits group specific efforts over
+time. Tasks can be left unclassified or assigned at any one of these levels;
+their primary Area and optional related Areas retain stable IDs through renames.
+Each Pursuit has one home Area, and can participate in additional Areas when
+the same effort genuinely spans them. Area and Domain names can repeat in
+different parents. Use the qualified `Domain / Area` path or an ID in the CLI
+when a name is ambiguous. Archiving keeps history; merging moves references and
+archives the source. See `scripts/README.md` for equivalent CLI operations.
 
 ## Task model
 

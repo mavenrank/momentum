@@ -80,7 +80,7 @@ IDs — exactly what the tag exists to prevent.
 
 ### Changing the folder
 
-Data view → **Data folder** → **Change folder**. Pointing this at something
+Settings → Data → **Data folder** → **Change folder**. Pointing this at something
 Drive, Syncthing or a NAS mount already watches is the entire argument for the
 shell over a browser tab.
 
@@ -99,7 +99,9 @@ layout `scripts/momentum-data.mjs` already reads and writes:
 
 ```
 meta.json            schema version, task-ID counter, last update time
+domains.json         broad Domains and their colours
 areas.json           areas and their colours
+pursuits.json        named efforts, lifecycle status, home and participating Areas
 habits.json          habit definitions
 habit-logs.json      daily habit ticks
 weeks.json           weekly notes, keyed by week start
@@ -169,7 +171,7 @@ was, and the app did not.
 The browser build never stopped working — `bun dev` gives the app on IndexedDB,
 while `bun tauri dev` opens the filesystem-backed native shell.
 
-To move data from the shell into a browser: Data view → **Export JSON**, then
+To move data from the shell into a browser: Settings → Data → **Export JSON**, then
 **Import JSON** in the browser build. Or run the CLI against the shell's folder:
 
 ```

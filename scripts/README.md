@@ -5,13 +5,22 @@ Tooling that lives alongside the app but operates on things outside it.
 ## `momentum.ts`
 
 A command interface over Momentum's shared application rules. It supports task,
-journal, weekly-note, area, and habit operations; JSON output; atomic batches;
+journal, weekly-note, Domain, Area, Pursuit, and habit operations; JSON output; atomic batches;
 conflict policies; dry runs; optimistic revisions; idempotency keys; audit
 history; and full-store validation.
 
 ```powershell
 bun scripts/momentum.ts createtask "Call mom tomorrow 6pm #personal"
 bun scripts/momentum.ts task list --date 2026-08-26 --json
+bun scripts/momentum.ts domain list --json
+bun scripts/momentum.ts domain consolidate
+bun scripts/momentum.ts area create "Research" --domain Work
+bun scripts/momentum.ts pursuit create "Dissertation" --area "Work / Research"
+bun scripts/momentum.ts task create "Draft chapter" --pursuit <id>
+bun scripts/momentum.ts pursuit tasks <id> --json
+bun scripts/momentum.ts pursuit areas <id> --areas <other-area-id>
+bun scripts/momentum.ts task update <id> --related-areas <area-id>,<area-id>
+bun scripts/momentum.ts area merge <source-id> <destination-id>
 bun scripts/momentum.ts validate
 ```
 
@@ -71,7 +80,9 @@ No dependencies; plain Node 18+ or `bun`.
 momentum-data/
   README.md            generated, explains the layout to anyone who opens the repo
   meta.json            schema version, task-ID counter, last update
+  domains.json
   areas.json
+  pursuits.json
   habits.json
   habit-logs.json
   weeks.json           weekly notes keyed by week start

@@ -4,6 +4,41 @@ All notable changes to Momentum will be documented in this file.
 
 The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
 
+## [0.8.0] - 2026-09-24
+
+### Added
+- Added Domains for broad life contexts, Areas for ongoing responsibilities
+  within a Domain, and Pursuits for focused efforts across tasks and dates.
+  Pursuits have one home Area and may include participating Areas; tasks can
+  also reference related Areas without changing their primary home.
+- Added a Pursuits workspace to browse the hierarchy, create Areas and
+  Pursuits, inspect tasks across dates, and move Pursuits through active,
+  on-hold, completed, and archived states.
+- Added lifecycle controls for Domains and Areas, including archive/restore,
+  Area moves and merges, with task history retained. The CLI exposes the same
+  organization operations and a command to consolidate safe duplicate Domains.
+- Added a collapsible Settings sidebar with an organization guide, dedicated
+  Domain, Area, and Pursuit pages, customization, and the relocated Data page.
+  Domain and Area colors can be chosen from 24 presets or a custom color.
+
+### Changed
+- Upgraded browser, Tauri, backup, import, export, and CLI data handling to
+  schema v4 with stable Domain, Area, and Pursuit references. Older backups
+  migrate without discarding task or Pursuit associations.
+- Grouped Areas under colored Domain headings in Settings and task capture.
+  The planner now distinguishes choosing a Domain alone from choosing one of
+  its Areas; repeated Area names on task cards include their Domain.
+- The navigation keeps Data inside Settings. The Journal remains hidden while
+  its stored entries and task references remain available for later restoration.
+
+### Fixed
+- Consolidated duplicate active Domains when their Areas do not collide,
+  remapping Area and direct-task references to the retained Domain. Colliding
+  Areas are left for manual review. Legacy “General” Areas and the “To organize”
+  holding Domain remain where existing tasks use them.
+- Resolved Area colors by stable ID in task and settings controls, so Areas
+  sharing a name can have different colors.
+
 ## [0.7.1] - 2026-09-23
 
 ### Changed
