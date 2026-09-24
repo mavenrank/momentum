@@ -20,6 +20,9 @@ bun scripts/momentum.ts task create "Draft chapter" --pursuit <id>
 bun scripts/momentum.ts pursuit tasks <id> --json
 bun scripts/momentum.ts pursuit areas <id> --areas <other-area-id>
 bun scripts/momentum.ts task update <id> --related-areas <area-id>,<area-id>
+bun scripts/momentum.ts task link <id> <related-task-id>
+bun scripts/momentum.ts task follow-up <id> --title "Check back" --date 2026-10-03
+bun scripts/momentum.ts task update <follow-up-id> --title "Review reply" --clear-date --status pool
 bun scripts/momentum.ts area merge <source-id> <destination-id>
 bun scripts/momentum.ts validate
 ```

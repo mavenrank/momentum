@@ -1,6 +1,6 @@
 [package]
 name = "momentum"
-version = "0.8.0"
+version = "0.9.0"
 description = "Momentum planner, wrapped in a Tauri shell"
 authors = ["Ananth"]
 license = ""

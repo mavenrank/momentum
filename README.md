@@ -63,6 +63,9 @@ unless `--warn-conflict` or `--allow-conflict` is explicit. See
     rail that widens when it is busy and collapses to a tab when it is not.
   - *Week*: unscheduled and pool panels above a seven-day strip. Assign a day by
     dragging, or select a task and press `Ctrl+Shift+1`–`7`.
+- **All tasks** — a full-width table for every date and status. Sort its columns,
+  search by title or ID, and narrow results by Domain, Area, Pursuit, and date.
+  Selecting a row opens its task page.
 - **Calendar** — a continuously scrolling month grid. Every date appears exactly
   once, rows resize so the active month fills the viewport, and the scroll settles
   onto month boundaries. The month and year float over the grid and roll in the
@@ -111,6 +114,10 @@ Tasks carry an immutable `T-YYYYMMDD-NNNN` id, a title, an optional one-line
 `summary` shown on the card, and an optional long-form `description` for the few
 tasks that need real notes. Relationships (`dependsOn`, `blocks`, `related`,
 `followUpOf`) form a graph rather than a tree.
+
+Task pages show scheduling, related and nearby tasks, and follow-ups in one
+place. Follow-ups can be created and edited there; the CLI can perform the same
+operations against its separate store.
 
 Anything left unfinished from the day before yesterday or earlier is swept back
 into the Pool automatically; yesterday is left alone so it can be triaged in the
