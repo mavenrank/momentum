@@ -4,6 +4,24 @@ All notable changes to Momentum will be documented in this file.
 
 The format follows Keep a Changelog conventions, and this project uses Semantic Versioning.
 
+## [0.9.1] - 2026-09-24
+
+### Added
+- Added a Calendar setting for continuous vertical navigation or side-by-side
+  month pages. Side-by-side pages fill leading and trailing dates from adjacent
+  months, show their tasks, and size their weeks to the available viewport.
+
+### Changed
+- Moved Calendar month controls beside the month title, gave the view breathing
+  room at the screen edge, and shortened title and month transitions. Repeated
+  button and wheel input interrupts the slide and speeds it up during bursts.
+- Hid Habits from navigation and routes while retaining stored habits and
+  exports. Settings explains why Habits and Journal remain paused.
+
+### Fixed
+- Kept the selected Planner day centered so one arrow press changes the visible
+  three-day window in either direction.
+
 ## [0.9.0] - 2026-09-24
 
 ### Added
