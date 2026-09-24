@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { tasksForPlannerDay } from "./plannerBoard";
+import { plannerDayLabel, tasksForPlannerDay } from "./plannerBoard";
 import type { DailyTask } from "@/types/planner";
 
 function task(id: string, scheduledDate: string | undefined, status: DailyTask["status"]): DailyTask {
@@ -34,5 +34,18 @@ describe("planner day selection", () => {
 
   test("the real current day carries active work without duplicating its scheduled tasks", () => {
     expect(tasksForPlannerDay(scheduled, doing, "2026-09-24", "2026-09-24").map((entry) => entry.id)).toEqual(["today", "later", "undated"]);
+  });
+});
+
+describe("planner column labels", () => {
+  test("each date keeps its real relationship to today as the board moves", () => {
+    const today = "2026-09-24";
+    expect(["2026-09-22", "2026-09-23", "2026-09-24"].map((date) => plannerDayLabel(date, today))).toEqual(["2 days ago", "Yesterday", "Today"]);
+    expect(["2026-09-24", "2026-09-25", "2026-09-26"].map((date) => plannerDayLabel(date, today))).toEqual(["Today", "Tomorrow", "Day after tomorrow"]);
+  });
+
+  test("counts days correctly across month and year boundaries", () => {
+    expect(plannerDayLabel("2027-01-01", "2026-12-31")).toBe("Tomorrow");
+    expect(plannerDayLabel("2026-12-29", "2027-01-01")).toBe("3 days ago");
   });
 });
