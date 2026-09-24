@@ -35,6 +35,7 @@ import {
   toDateKey,
 } from "@/lib/date";
 import { poolTasks, unscheduledTasks } from "@/lib/plannerData";
+import { tasksForPlannerDay } from "@/lib/plannerBoard";
 import { cn } from "@/lib/utils";
 import type { PlannerActions } from "@/hooks/usePlannerActions";
 import { compareByTiming } from "@/types/planner";
@@ -105,6 +106,8 @@ export function TodayView({
   const yesterday = addDays(selectedDate, -1);
   const tomorrow = addDays(selectedDate, 1);
   const dayAfter = addDays(selectedDate, 2);
+  const actualToday = toDateKey(new Date());
+  const viewingToday = selectedDate === actualToday;
 
   const sensors = useSensors(
     // A small activation distance keeps click-to-select working.
@@ -143,32 +146,31 @@ export function TodayView({
 
     const todayColumn: Column = {
       key: "today",
-      label: "Today",
+      label: viewingToday ? "Today" : "Selected day",
       date: selectedDate,
-      tasks: [...(scheduledByDate.get(selectedDate) ?? []), ...doingTasks.filter((task) => task.scheduledDate !== selectedDate)]
-        .sort(compareByTiming),
+      tasks: tasksForPlannerDay(scheduledByDate, doingTasks, selectedDate, actualToday).sort(compareByTiming),
     };
 
     if (leftovers.length > 0) {
       return [
         {
           key: "yesterday",
-          label: "Yesterday",
+          label: viewingToday ? "Yesterday" : "Previous day",
           date: yesterday,
           tasks: [...leftovers].sort(compareByTiming),
           isLeftover: true,
         },
         todayColumn,
-        { key: "tomorrow", label: "Tomorrow", date: tomorrow, tasks: on(tomorrow) },
+        { key: "tomorrow", label: viewingToday ? "Tomorrow" : "Next day", date: tomorrow, tasks: on(tomorrow) },
       ];
     }
 
     return [
       todayColumn,
-      { key: "tomorrow", label: "Tomorrow", date: tomorrow, tasks: on(tomorrow) },
+      { key: "tomorrow", label: viewingToday ? "Tomorrow" : "Next day", date: tomorrow, tasks: on(tomorrow) },
       { key: "dayAfter", label: "Day after", date: dayAfter, tasks: on(dayAfter) },
     ];
-  }, [scheduledByDate, doingTasks, leftovers, selectedDate, yesterday, tomorrow, dayAfter]);
+  }, [scheduledByDate, doingTasks, leftovers, selectedDate, actualToday, viewingToday, yesterday, tomorrow, dayAfter]);
 
   const pool = React.useMemo(() => poolTasks(data), [data]);
   const unscheduled = React.useMemo(() => unscheduledTasks(data), [data]);
@@ -200,11 +202,12 @@ export function TodayView({
   const stats = React.useMemo(() => {
     const tasks = todayColumn?.tasks ?? [];
     return {
-      scheduled: tasks.filter((task) => task.status !== "done").length,
+      scheduled: tasks.filter((task) => task.scheduledDate === selectedDate && task.status !== "done").length,
+      inProgress: tasks.filter((task) => task.status === "doing" && task.scheduledDate !== selectedDate).length,
       waiting: tasks.filter((task) => task.status === "waiting").length,
       overdue: leftovers.length,
     };
-  }, [todayColumn, leftovers]);
+  }, [todayColumn, leftovers, selectedDate]);
 
   const flatTasks = React.useMemo(() => columns.flatMap((column) => column.tasks), [columns]);
 
@@ -418,7 +421,7 @@ export function TodayView({
               direction={rollDirection}
             />
           }
-          subtitle={`${stats.scheduled} scheduled · ${stats.waiting} waiting · ${stats.overdue} overdue`}
+          subtitle={`${stats.scheduled} scheduled${stats.inProgress ? ` · ${stats.inProgress} doing` : ""} · ${stats.waiting} waiting · ${stats.overdue} overdue`}
           lensControl={lensControl}
         >
           {/* One switch, not a choice of two views: the board is the resting
