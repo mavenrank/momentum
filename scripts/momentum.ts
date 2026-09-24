@@ -41,6 +41,7 @@ const BOOLEAN_FLAGS = new Set([
   "stdin",
   "help",
   "clear-area",
+  "clear-date",
   "clear-domain",
   "clear-related-areas",
   "primary-only",
@@ -375,6 +376,11 @@ function taskUpdateCommand(args: ParsedArgs, taskId: string): PlannerCommand {
   if (summary !== undefined) patch.summary = summary;
   if (description !== undefined) patch.description = description;
   if (date !== undefined) patch.scheduledDate = date;
+  if (args.flags["clear-date"]) {
+    patch.scheduledDate = undefined;
+    patch.timeOfDay = undefined;
+    patch.allDay = undefined;
+  }
   if (time !== undefined) {
     patch.timeOfDay = time;
     patch.allDay = undefined;
@@ -606,8 +612,11 @@ function mutationFromArgs(args: ParsedArgs): PlannerCommand | null {
 
   if (scope === "createtask") return taskCreateCommand(args, 1);
   if (scope === "task" && action === "create") return taskCreateCommand(args, 2);
+  if (scope === "task" && action === "follow-up") return { type: "task.createFollowUp", parentId: rest[0] ?? "", title: requireValue(args, "title"), scheduledDate: flagString(args, "date"), conflictPolicy: conflictPolicy(args) };
   if (scope === "task" && action === "update") return taskUpdateCommand(args, rest[0] ?? "");
   if (scope === "task" && action === "delete") return { type: "task.delete", taskId: rest[0] ?? "" };
+  if (scope === "task" && action === "link") return { type: "task.linkRelated", taskId: rest[0] ?? "", otherTaskId: rest[1] ?? "" };
+  if (scope === "task" && action === "unlink") return { type: "task.unlinkRelated", taskId: rest[0] ?? "", otherTaskId: rest[1] ?? "" };
   if (scope === "task" && action === "complete") return { type: "task.update", taskId: rest[0] ?? "", patch: { status: "done" } };
   if (scope === "task" && action === "schedule") return { type: "task.schedule", taskId: rest[0] ?? "", date: requireValue(args, "date"), conflictPolicy: conflictPolicy(args) };
   if (scope === "task" && action === "pool") return { type: "task.returnToPool", taskId: rest[0] ?? "" };
@@ -647,7 +656,7 @@ function printHuman(response: CliResponse): void {
     return;
   }
   console.log(response.message);
-  if (response.command === "task.create" && response.result) {
+  if ((response.command === "task.create" || response.command === "task.createFollowUp") && response.result) {
     const task = response.result as DailyTask;
     console.log(`  ${task.id}  ${task.title}`);
   } else if (response.command === "task.list" && Array.isArray(response.result)) {
@@ -673,9 +682,12 @@ const HELP = `Momentum CLI — command access to the shared application rules
   momentum task create "Deep work 9am-11am must #work"
   momentum task list [--date YYYY-MM-DD] [--status pool] [--area "Domain / Area"] [--pursuit id] [--primary-only]
   momentum task update <id> [--title ...] [--date ...] [--time ...]
+  momentum task follow-up <parent-id> --title "Check back" [--date YYYY-MM-DD]
+  momentum task update <follow-up-id> --title "New title" [--date YYYY-MM-DD|--clear-date] [--status pool]
   momentum task create "Plan review" --domain Work
   momentum task update <id> --area "Work / General" --related-areas <id>,<id>
   momentum task complete|delete|pool <id>
+  momentum task link|unlink <id> <related-task-id>
   momentum task schedule <id> --date YYYY-MM-DD
   momentum journal set --date YYYY-MM-DD --note "..."
   momentum week set --date YYYY-MM-DD --note "..."

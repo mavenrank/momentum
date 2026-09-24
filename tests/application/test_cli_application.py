@@ -26,6 +26,28 @@ class MomentumApplicationTests(unittest.TestCase):
         self.data_path = Path(self.temporary.name) / "store.json"
         self.cli = MomentumCli(self.data_path)
 
+    def test_related_task_links_through_cli(self) -> None:
+        first = self.cli.run("task", "create", "Write outline")["result"]["id"]
+        second = self.cli.run("task", "create", "Review outline")["result"]["id"]
+        self.cli.run("task", "link", first, second)
+        self.assertIn(second, self.cli.run("task", "show", first)["result"]["relationships"]["related"])
+        self.assertIn(first, self.cli.run("task", "show", second)["result"]["relationships"]["related"])
+        self.cli.run("task", "unlink", first, second)
+        self.assertEqual(self.cli.run("task", "show", first)["result"]["relationships"]["related"], [])
+
+    def test_follow_up_can_be_created_and_edited_through_cli(self) -> None:
+        parent = self.cli.run("task", "create", "Call supplier")["result"]["id"]
+        child = self.cli.run("task", "follow-up", parent, "--title", "Ask for quote", "--date", "2026-10-03")["result"]
+        self.assertEqual(child["relationships"]["followUpOf"], parent)
+        self.assertEqual(child["scheduledDate"], "2026-10-03")
+
+        self.cli.run("task", "update", child["id"], "--title", "Review quote", "--clear-date", "--status", "pool")
+        updated = self.cli.run("task", "show", child["id"])["result"]
+        self.assertEqual(updated["title"], "Review quote")
+        self.assertIsNone(updated.get("scheduledDate"))
+        self.assertEqual(updated["status"], "pool")
+        self.assertEqual(updated["relationships"]["followUpOf"], parent)
+
     def test_conflicts_revisions_idempotency_and_dry_run(self) -> None:
         first = self.cli.run(
             "createtask",
