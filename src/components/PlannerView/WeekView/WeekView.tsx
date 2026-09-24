@@ -52,7 +52,7 @@ interface WeekViewProps {
   execute: PlannerCommandExecutor;
   actions: PlannerActions;
   selectedDate: string;
-  setSelectedDate: (date: string) => void;
+  setSelectedDate: React.Dispatch<React.SetStateAction<string>>;
   onOpenDay: (date: string) => void;
   /** The Today/Week switch, rendered inline with this view's own controls. */
   lensControl?: React.ReactNode;
@@ -183,7 +183,6 @@ export function WeekView({
   const { toast } = useToast();
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
   const [draggingTask, setDraggingTask] = React.useState<DailyTask | null>(null);
-  const [slide, setSlide] = React.useState<"left" | "right" | null>(null);
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [followUpFor, setFollowUpFor] = React.useState<DailyTask | null>(null);
   const [inboxBucket, setInboxBucket] = React.useState<InboxBucket>("pool");
@@ -244,9 +243,7 @@ export function WeekView({
   );
 
   function shiftWeek(direction: -1 | 1) {
-    setSlide(direction === 1 ? "right" : "left");
-    setSelectedDate(addDays(selectedDate, direction * 7));
-    window.setTimeout(() => setSlide(null), 260);
+    setSelectedDate((current) => addDays(current, direction * 7));
   }
 
   function returnToPool(taskId: string) {
@@ -427,14 +424,7 @@ export function WeekView({
 
         {/* The strip owns the remaining height and divides it evenly. Each column
             scrolls inside its share, so a busy Tuesday never resizes the week. */}
-        <div
-          key={weekStart}
-          className={cn(
-            "grid min-h-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7",
-            slide === "right" && "slide-from-right",
-            slide === "left" && "slide-from-left",
-          )}
-        >
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           {timeBlocking ? (
             <div className="col-span-full flex min-h-0">
               <TimeBlockGrid

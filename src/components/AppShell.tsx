@@ -95,8 +95,7 @@ export function AppShell() {
         {planner.loading ? (
           <p className="m-auto text-sm text-muted-foreground">Loading your planner…</p>
         ) : (
-          /* Keyed on the section so each switch gets a soft entrance. */
-          <div key={route.kind} className="view-enter min-h-0 flex-1">
+          <div className="min-h-0 flex-1">
             {route.kind === "planner" ? (
               <PlannerView {...shared} lens={lens} setLens={setLens} onOpenDay={openDay} onOpenTask={openTask} />
             ) : null}

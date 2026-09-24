@@ -4,6 +4,7 @@ import { CalendarRange, Inbox } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { QuickAdd } from "./QuickAdd";
+import { VirtualTaskList, type VirtualTaskItem } from "./VirtualTaskList";
 import { cn } from "@/lib/utils";
 import type { ParsedTask } from "@/lib/nlp/taskParser";
 import type { Area, DailyTask, Domain } from "@/types/planner";
@@ -69,6 +70,7 @@ export function InboxPanel({
   className,
 }: InboxPanelProps) {
   const tasks = active === "pool" ? pool : unscheduled;
+  const items = React.useMemo<VirtualTaskItem[]>(() => tasks.map((task) => ({ key: task.id, task })), [tasks]);
   const counts: Record<InboxBucket, number> = {
     pool: pool.length,
     unscheduled: unscheduled.length,
@@ -100,13 +102,7 @@ export function InboxPanel({
           onCreate={(parsed) => onCreate(active, parsed)}
         />
 
-        <div role="list" className="flex max-h-36 min-h-0 flex-col gap-1 overflow-y-auto">
-          {tasks.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">{bucket.empty}</p>
-          ) : (
-            tasks.map(renderTask)
-          )}
-        </div>
+        <VirtualTaskList key={active} items={items} renderTask={renderTask} empty={bucket.empty} estimatedTaskHeight={60} className="max-h-36 min-h-0" />
       </div>
     </section>
   );

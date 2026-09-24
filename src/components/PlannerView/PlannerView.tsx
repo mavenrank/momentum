@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlannerActions } from "@/hooks/usePlannerActions";
 import { isTimeBlocking, setTimeBlocking, usePreferences } from "@/lib/preferences";
@@ -10,7 +11,7 @@ interface PlannerViewProps {
   data: PlannerData;
   execute: PlannerCommandExecutor;
   selectedDate: string;
-  setSelectedDate: (date: string) => void;
+  setSelectedDate: React.Dispatch<React.SetStateAction<string>>;
   lens: PlannerLens;
   setLens: (lens: PlannerLens) => void;
   onOpenDay: (date: string) => void;
@@ -48,7 +49,7 @@ export function PlannerView({
   );
 
   return (
-    <div key={lens} className="view-enter h-full min-h-0">
+    <div className="h-full min-h-0">
       {lens === "today" ? (
         <TodayView
           data={data}

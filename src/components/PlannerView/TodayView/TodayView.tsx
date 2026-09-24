@@ -24,6 +24,7 @@ import { FollowUpPrompt } from "../FollowUpPrompt";
 import { TaskContextMenu, useTaskContextMenu } from "../TaskContextMenu";
 import type { TaskMenuActions } from "../TaskContextMenu";
 import { TaskSuggestion } from "../TaskSuggestion";
+import { VirtualTaskList, type VirtualTaskItem } from "../VirtualTaskList";
 import { computeDayWindow, TimeBlockGrid, type TimeBlockColumn } from "../TimeBlockGrid";
 import { blockTask, resolveTimeBlockDrop } from "../timeBlockDnd";
 import {
@@ -43,7 +44,7 @@ interface TodayViewProps {
   data: PlannerData;
   actions: PlannerActions;
   selectedDate: string;
-  setSelectedDate: (date: string) => void;
+  setSelectedDate: React.Dispatch<React.SetStateAction<string>>;
   /** The Today/Week switch, rendered inline with this view's own controls. */
   lensControl?: React.ReactNode;
   timeBlocking: boolean;
@@ -88,7 +89,6 @@ export function TodayView({
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null);
   const [followUpFor, setFollowUpFor] = React.useState<DailyTask | null>(null);
-  const [slide, setSlide] = React.useState<"left" | "right" | null>(null);
   const [poolCollapsed, setPoolCollapsed] = React.useState(false);
   const [draggingTask, setDraggingTask] = React.useState<DailyTask | null>(null);
   const [dropPreview, setDropPreview] = React.useState<{
@@ -96,7 +96,11 @@ export function TodayView({
     minutes: number;
   } | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const previousDate = React.useRef(selectedDate);
+  const rollDirection = selectedDate < previousDate.current ? "down" : "up";
   const menu = useTaskContextMenu();
+
+  React.useEffect(() => { previousDate.current = selectedDate; }, [selectedDate]);
 
   const yesterday = addDays(selectedDate, -1);
   const tomorrow = addDays(selectedDate, 1);
@@ -112,10 +116,20 @@ export function TodayView({
     [data.daily],
   );
 
+  const scheduledByDate = React.useMemo(() => {
+    const byDate = new Map<string, DailyTask[]>();
+    for (const task of flatAllTasks) {
+      if (!task.scheduledDate) continue;
+      const group = byDate.get(task.scheduledDate) ?? [];
+      group.push(task);
+      byDate.set(task.scheduledDate, group);
+    }
+    return byDate;
+  }, [flatAllTasks]);
+  const doingTasks = React.useMemo(() => flatAllTasks.filter((task) => task.status === "doing"), [flatAllTasks]);
   const leftovers = React.useMemo(
-    () =>
-      flatAllTasks.filter((task) => task.scheduledDate === yesterday && task.status !== "done"),
-    [flatAllTasks, yesterday],
+    () => (scheduledByDate.get(yesterday) ?? []).filter((task) => task.status !== "done"),
+    [scheduledByDate, yesterday],
   );
 
   /**
@@ -125,15 +139,13 @@ export function TodayView({
    */
   const columns = React.useMemo<Column[]>(() => {
     // All-day commitments head each column, then timed work in clock order.
-    const on = (date: string) =>
-      flatAllTasks.filter((task) => task.scheduledDate === date).sort(compareByTiming);
+    const on = (date: string) => [...(scheduledByDate.get(date) ?? [])].sort(compareByTiming);
 
     const todayColumn: Column = {
       key: "today",
       label: "Today",
       date: selectedDate,
-      tasks: flatAllTasks
-        .filter((task) => task.scheduledDate === selectedDate || task.status === "doing")
+      tasks: [...(scheduledByDate.get(selectedDate) ?? []), ...doingTasks.filter((task) => task.scheduledDate !== selectedDate)]
         .sort(compareByTiming),
     };
 
@@ -156,20 +168,22 @@ export function TodayView({
       { key: "tomorrow", label: "Tomorrow", date: tomorrow, tasks: on(tomorrow) },
       { key: "dayAfter", label: "Day after", date: dayAfter, tasks: on(dayAfter) },
     ];
-  }, [flatAllTasks, leftovers, selectedDate, yesterday, tomorrow, dayAfter]);
+  }, [scheduledByDate, doingTasks, leftovers, selectedDate, yesterday, tomorrow, dayAfter]);
 
   const pool = React.useMemo(() => poolTasks(data), [data]);
   const unscheduled = React.useMemo(() => unscheduledTasks(data), [data]);
   const railTasks = React.useMemo(() => [...pool, ...unscheduled], [pool, unscheduled]);
+  const railItems = React.useMemo<VirtualTaskItem[]>(() => [
+    ...pool.map((task) => ({ key: task.id, task })),
+    ...(unscheduled.length ? [{ key: "unscheduled-heading", label: "Unscheduled" }] : []),
+    ...unscheduled.map((task) => ({ key: task.id, task })),
+  ], [pool, unscheduled]);
 
   // The grid draws by date, so it wants exactly what is scheduled on those days.
   const columnDates = React.useMemo(() => columns.map((column) => column.date), [columns]);
   const gridTasks = React.useMemo(
-    () =>
-      flatAllTasks.filter(
-        (task) => task.scheduledDate && columnDates.includes(task.scheduledDate),
-      ),
-    [flatAllTasks, columnDates],
+    () => columnDates.flatMap((date) => scheduledByDate.get(date) ?? []),
+    [scheduledByDate, columnDates],
   );
   // Shared with the grid so the pixels and the drop maths agree.
   const dayWindow = React.useMemo(() => computeDayWindow(gridTasks), [gridTasks]);
@@ -193,15 +207,6 @@ export function TodayView({
   }, [todayColumn, leftovers]);
 
   const flatTasks = React.useMemo(() => columns.flatMap((column) => column.tasks), [columns]);
-
-  function goToDate(date: string) {
-    if (date === selectedDate) {
-      return;
-    }
-    setSlide(date > selectedDate ? "right" : "left");
-    setSelectedDate(date);
-    window.setTimeout(() => setSlide(null), 260);
-  }
 
   function focusTask(taskId: string) {
     setSelectedTaskId(taskId);
@@ -410,7 +415,7 @@ export function TodayView({
           title={
             <RollingText
               value={formatFriendlyDate(selectedDate)}
-              direction={slide === "left" ? "down" : "up"}
+              direction={rollDirection}
             />
           }
           subtitle={`${stats.scheduled} scheduled · ${stats.waiting} waiting · ${stats.overdue} overdue`}
@@ -438,14 +443,14 @@ export function TodayView({
               variant="outline"
               size="icon"
               title="Previous day"
-              onClick={() => goToDate(yesterday)}
+              onClick={() => setSelectedDate((current) => addDays(current, -1))}
             >
               <ChevronLeft className="size-4" />
             </Button>
             <Button
               variant="outline"
               className={STEPPER_LABEL_WIDTH}
-              onClick={() => goToDate(toDateKey(new Date()))}
+              onClick={() => setSelectedDate(toDateKey(new Date()))}
             >
               Today
             </Button>
@@ -453,7 +458,7 @@ export function TodayView({
               variant="outline"
               size="icon"
               title="Next day"
-              onClick={() => goToDate(tomorrow)}
+              onClick={() => setSelectedDate((current) => addDays(current, 1))}
             >
               <ChevronRight className="size-4" />
             </Button>
@@ -504,14 +509,7 @@ export function TodayView({
                 }
               />
             ) : (
-              <div
-                key={columns[0].key + selectedDate}
-                className={cn(
-                  "grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3",
-                  slide === "right" && "slide-from-right",
-                  slide === "left" && "slide-from-left",
-                )}
-              >
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3">
                 {columns.map((column) => (
                   <section
                     key={column.key}
@@ -565,28 +563,9 @@ export function TodayView({
               grows={railGrows}
               count={railTasks.length}
               onToggle={() => setPoolCollapsed((collapsed) => !collapsed)}
-            >
-              {railTasks.length === 0 ? (
-                <p className="px-1 py-6 text-center text-xs text-muted-foreground">
-                  Drop a task here to clear its date and time.
-                </p>
-              ) : null}
-
-              {pool.map((task) =>
-                renderCard(task, { compact: !railGrows, draggable: timeBlocking }),
-              )}
-
-              {unscheduled.length > 0 ? (
-                <>
-                  <p className="px-1 pt-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Unscheduled
-                  </p>
-                  {unscheduled.map((task) =>
-                    renderCard(task, { compact: !railGrows, draggable: timeBlocking }),
-                  )}
-                </>
-              ) : null}
-            </PoolRail>
+              items={railItems}
+              renderTask={(task) => renderCard(task, { compact: !railGrows, draggable: timeBlocking })}
+            />
           ) : null}
         </div>
 
@@ -629,13 +608,15 @@ function PoolRail({
   grows,
   count,
   onToggle,
-  children,
+  items,
+  renderTask,
 }: {
   open: boolean;
   grows: boolean;
   count: number;
   onToggle: () => void;
-  children: React.ReactNode;
+  items: VirtualTaskItem[];
+  renderTask: (task: DailyTask) => React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "pool" });
 
@@ -676,9 +657,7 @@ function PoolRail({
         </button>
 
         {open ? (
-          <div role="list" className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-            {children}
-          </div>
+          <VirtualTaskList items={items} renderTask={renderTask} empty="Drop a task here to clear its date and time." estimatedTaskHeight={96} className="min-h-0 flex-1 p-2" />
         ) : null}
       </section>
     </aside>
