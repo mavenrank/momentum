@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const DURATION_MS = 260;
+const DURATION_MS = 180;
 
 export interface RollingTextProps {
   /** The text to display. Changing it triggers the roll. */
@@ -12,7 +12,7 @@ export interface RollingTextProps {
    * below — the direction of moving forward. Omit to infer it by comparing the
    * old and new values, which works for zero-padded dates and years.
    */
-  direction?: "up" | "down";
+  direction?: "up" | "down" | "left" | "right";
   className?: string;
 }
 
@@ -24,7 +24,7 @@ export interface RollingTextProps {
 export function RollingText({ value, direction, className }: RollingTextProps) {
   const [current, setCurrent] = React.useState(value);
   const [outgoing, setOutgoing] = React.useState<string | null>(null);
-  const [roll, setRoll] = React.useState<"up" | "down">("up");
+  const [roll, setRoll] = React.useState<"up" | "down" | "left" | "right">("up");
 
   // The clear-out timer lives in a ref rather than an effect cleanup: any
   // unrelated re-render during the animation would otherwise run the cleanup,
@@ -69,7 +69,7 @@ export function RollingText({ value, direction, className }: RollingTextProps) {
         key={current}
         className={cn(
           "absolute inset-0 whitespace-nowrap",
-          outgoing !== null && (roll === "up" ? "roll-in-up" : "roll-in-down"),
+          outgoing !== null && `roll-in-${roll}`,
         )}
       >
         {current}
@@ -81,7 +81,7 @@ export function RollingText({ value, direction, className }: RollingTextProps) {
           aria-hidden
           className={cn(
             "absolute inset-0 whitespace-nowrap",
-            roll === "up" ? "roll-out-up" : "roll-out-down",
+            `roll-out-${roll}`,
           )}
         >
           {outgoing}

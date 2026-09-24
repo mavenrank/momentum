@@ -62,6 +62,12 @@ export function getMonthCalendarDays(dateKey: string): string[] {
   return Array.from({ length: 42 }, (_, index) => addDays(calendarStart, index));
 }
 
+/** Monday-first weeks covering a month, including visible adjacent-month dates. */
+export function getMonthPageSlots(dateKey: string): string[] {
+  return getMonthCalendarDays(dateKey)
+    .slice(0, getMonthWeekCount(dateKey) * 7);
+}
+
 export function isSameMonth(dateKey: string, monthKey: string): boolean {
   return dateKey.slice(0, 7) === monthKey.slice(0, 7);
 }
@@ -73,7 +79,7 @@ export function daysInMonth(dateKey: string): number {
 
 /**
  * Rows a Monday-first grid needs to cover the month — 4, 5 or 6 depending on
- * where the first falls. The calendar uses this to size placeholders exactly.
+ * where the first falls. The calendar uses this to size each page exactly.
  */
 export function getMonthWeekCount(dateKey: string): number {
   const first = fromDateKey(startOfMonthKey(dateKey));

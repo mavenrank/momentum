@@ -19,12 +19,15 @@ export interface Preferences {
   linkTimeBlocking: boolean;
   timeBlockingToday: boolean;
   timeBlockingWeek: boolean;
+  /** How the calendar moves between months on this device. */
+  calendarNavigation: "vertical" | "horizontal";
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
   linkTimeBlocking: true,
   timeBlockingToday: false,
   timeBlockingWeek: false,
+  calendarNavigation: "vertical",
 };
 
 const STORAGE_KEY = "momentum.preferences";

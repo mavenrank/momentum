@@ -179,6 +179,29 @@ export function SettingsView({ data, execute, replaceData, section, onSectionCha
           </label>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle>Calendar navigation</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">Choose how months move in Calendar. This setting applies on this device.</p>
+          <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Calendar navigation style">
+            {([
+              { value: "vertical", title: "Continuous", detail: "Scroll up and down through one continuous calendar." },
+              { value: "horizontal", title: "Side by side", detail: "Swipe or scroll left and right, one month at a time." },
+            ] as const).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={preferences.calendarNavigation === option.value}
+                onClick={() => setPreferences({ calendarNavigation: option.value })}
+                className={`rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${preferences.calendarNavigation === option.value ? "border-primary bg-primary/10" : "hover:bg-accent/50"}`}
+              >
+                <span className="block text-sm font-medium">{option.title}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{option.detail}</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
       </> : null}
 
       {section === "domains" ? <>

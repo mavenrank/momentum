@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { RollingText } from "@/components/ui/rolling-text";
@@ -7,14 +7,18 @@ import { useCalendarScroller } from "./useCalendarScroller";
 import { getAreaColor } from "@/lib/areas";
 import {
   addDays,
+  addMonths,
   formatMonth,
   formatTimeOfDay,
   fromDateKey,
+  getMonthPageSlots,
+  getMonthWeekCount,
   isSameMonth,
   startOfMonthKey,
   toDateKey,
 } from "@/lib/date";
 import { allTasks } from "@/lib/plannerData";
+import { usePreferences } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 import { compareByTiming } from "@/types/planner";
 import type { DailyTask, PlannerData } from "@/types/planner";
@@ -54,6 +58,7 @@ interface DayCellProps {
   today: string;
   selectedDate: string;
   maxChips: number;
+  fitHeight?: boolean;
   onOpenDay: (date: string) => void;
   onOpenTask: (taskId: string) => void;
 }
@@ -66,6 +71,7 @@ const DayCell = React.memo(function DayCell({
   today,
   selectedDate,
   maxChips,
+  fitHeight,
   onOpenDay,
   onOpenTask,
 }: DayCellProps) {
@@ -81,6 +87,7 @@ const DayCell = React.memo(function DayCell({
     <div
       className={cn(
         "group flex min-w-0 flex-col gap-0.5 border-b border-r p-1 transition-colors duration-200",
+        fitHeight && "min-h-0",
         inActiveMonth ? "bg-background" : "bg-muted/30",
         isSelected && "bg-accent/40",
         // A heavier top edge marks where a new month begins.
@@ -166,7 +173,7 @@ const DayCell = React.memo(function DayCell({
   );
 });
 
-export function CalendarView({
+function VerticalCalendar({
   onOpenTask,
   data,
   selectedDate,
@@ -244,60 +251,54 @@ export function CalendarView({
   }, [scroller.activeMonth]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
-      {/* Month on the left, year on the right, floating over the grid. Both roll
-          in the direction of travel as the active month changes. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-baseline justify-between px-3 py-1.5">
-        <span className="rounded-md bg-background/75 px-2 py-0.5 backdrop-blur-md">
+    <div className="flex h-full min-h-0 flex-col p-3 sm:p-4">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b px-2 pb-3 pt-1 sm:px-3">
+        <h2 className="flex min-w-0 items-baseline gap-2 overflow-hidden">
           <RollingText
             value={formatMonth(scroller.activeMonth).split(" ")[0]}
             direction={rollDirection}
-            className="text-2xl font-semibold tracking-tight"
+            className="text-xl font-semibold tracking-tight sm:text-2xl"
           />
-        </span>
-        <span className="rounded-md bg-background/75 px-2 py-0.5 backdrop-blur-md">
           <RollingText
             value={String(activeYear)}
             direction={rollDirection}
-            className="text-2xl font-light tabular-nums text-muted-foreground"
+            className="text-lg font-light tabular-nums text-muted-foreground sm:text-xl"
           />
-        </span>
-      </div>
+        </h2>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            title="Previous month"
+            aria-label="Previous month"
+            onClick={() => scroller.stepMonth(-1)}
+          >
+            <ChevronUp className="size-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            title="Jump to today"
+            onClick={() => {
+              setSelectedDate(today);
+              scroller.jumpToMonth(startOfMonthKey(today));
+            }}
+          >
+            Today
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            title="Next month"
+            aria-label="Next month"
+            onClick={() => scroller.stepMonth(1)}
+          >
+            <ChevronDown className="size-3.5" />
+          </Button>
+        </div>
+      </header>
 
-      <div className="pointer-events-none absolute right-3 top-14 z-20 flex flex-col items-end gap-1">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          title="Previous month"
-          className="pointer-events-auto bg-background/85 backdrop-blur"
-          onClick={() => scroller.stepMonth(-1)}
-        >
-          <ChevronUp className="size-3.5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          title="Next month"
-          className="pointer-events-auto bg-background/85 backdrop-blur"
-          onClick={() => scroller.stepMonth(1)}
-        >
-          <ChevronDown className="size-3.5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          title="Jump to today"
-          className="pointer-events-auto mt-0.5 h-7 bg-background/85 px-2 text-xs backdrop-blur"
-          onClick={() => {
-            setSelectedDate(today);
-            scroller.jumpToMonth(startOfMonthKey(today));
-          }}
-        >
-          Today
-        </Button>
-      </div>
-
-      <div className="z-10 grid shrink-0 grid-cols-7 border-b bg-background pt-10">
+      <div className="grid shrink-0 grid-cols-7 border-b bg-background">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
@@ -344,4 +345,234 @@ export function CalendarView({
 
     </div>
   );
+}
+
+/** A month-per-page alternative to the continuous week stream. */
+function HorizontalCalendar({ data, selectedDate, setSelectedDate, onOpenDay, onOpenTask }: CalendarViewProps) {
+  const today = toDateKey(new Date());
+  const [activeMonth, setActiveMonth] = React.useState(() => startOfMonthKey(selectedDate));
+  const [viewport, setViewport] = React.useState({ width: 0, height: 0 });
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const settleTimer = React.useRef<number | null>(null);
+  const pendingSlide = React.useRef<{ from: number; duration: number } | null>(null);
+  const slideFrame = React.useRef<number | null>(null);
+  const buttonAnimating = React.useRef(false);
+  const committingMonth = React.useRef(false);
+  const pressBurst = React.useRef({ lastTime: 0, count: 0 });
+  const wheelBurst = React.useRef({ lastTime: 0, direction: 0, count: 0, carry: 0 });
+  const months = React.useMemo(
+    () => [addMonths(activeMonth, -1), activeMonth, addMonths(activeMonth, 1)],
+    [activeMonth],
+  );
+
+  const tasksByDay = React.useMemo(() => {
+    const groups = new Map<string, DailyTask[]>();
+    for (const task of allTasks(data)) {
+      if (!task.scheduledDate) continue;
+      const bucket = groups.get(task.scheduledDate) ?? [];
+      bucket.push(task);
+      groups.set(task.scheduledDate, bucket);
+    }
+    for (const bucket of groups.values()) bucket.sort(compareByTiming);
+    return groups;
+  }, [data]);
+
+  React.useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (track && viewport.width > 0) {
+      if (slideFrame.current !== null) window.cancelAnimationFrame(slideFrame.current);
+      const slide = pendingSlide.current;
+      if (slide && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // The new three-page range contains the former month beside the new
+        // center. A timed frame animation lets a new input interrupt the slide
+        // and lets a wheel burst shorten it without browser scroll delays.
+        track.style.scrollSnapType = "none";
+        const from = slide.from;
+        track.scrollLeft = from;
+        const startedAt = performance.now();
+        const animate = (now: number) => {
+          const progress = Math.min(1, (now - startedAt) / slide.duration);
+          const eased = 1 - (1 - progress) ** 3;
+          track.scrollLeft = from + (viewport.width - from) * eased;
+          if (progress < 1) {
+            slideFrame.current = window.requestAnimationFrame(animate);
+          } else {
+            track.scrollLeft = viewport.width;
+            track.style.scrollSnapType = "";
+            slideFrame.current = null;
+            buttonAnimating.current = false;
+          }
+        };
+        slideFrame.current = window.requestAnimationFrame(animate);
+      } else {
+        track.style.scrollSnapType = "";
+        track.scrollLeft = viewport.width;
+        buttonAnimating.current = false;
+      }
+      pendingSlide.current = null;
+    }
+    committingMonth.current = false;
+  }, [activeMonth, viewport.width]);
+
+  React.useEffect(() => () => {
+    if (slideFrame.current !== null) window.cancelAnimationFrame(slideFrame.current);
+  }, []);
+
+  const stepMonth = React.useCallback((delta: number, duration = 170) => {
+    if (!delta) return;
+    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    const width = viewport.width;
+    const currentOffset = trackRef.current?.scrollLeft ?? width;
+    // Shift the in-flight visual position into the next three-page range.
+    // This avoids jumping back to a page edge on rapid repeated input.
+    const from = Math.max(0, Math.min(width * 2, currentOffset - Math.sign(delta) * width));
+    pendingSlide.current = { from, duration };
+    buttonAnimating.current = true;
+    // Each click updates the destination immediately. The in-flight slide is
+    // interrupted and replaced by a slide to the newest destination.
+    setActiveMonth((current) => addMonths(current, delta));
+  }, [viewport.width]);
+
+  React.useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const observer = new ResizeObserver(() => {
+      const width = track.clientWidth;
+      const height = track.clientHeight;
+      setViewport((current) => current.width === width && current.height === height ? current : { width, height });
+    });
+    observer.observe(track);
+    setViewport({ width: track.clientWidth, height: track.clientHeight });
+    return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const settle = () => {
+      if (viewport.width === 0) return;
+      if (buttonAnimating.current) return;
+      const page = Math.max(0, Math.min(2, Math.round(track.scrollLeft / viewport.width)));
+      // Keep the same three pages mounted throughout the swipe. Replace them
+      // only after the viewport has snapped onto a complete month.
+      if (Math.abs(track.scrollLeft - page * viewport.width) > 4) return;
+      if (page !== 1) {
+        if (!committingMonth.current) {
+          committingMonth.current = true;
+          setActiveMonth((current) => addMonths(current, page - 1));
+        }
+      }
+    };
+    const onScroll = () => {
+      // Modern Chromium/WebView2 fires scrollend after scroll snapping and
+      // touchpad inertia finish. Only older engines need an idle fallback.
+      if ("onscrollend" in track) return;
+      if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+      settleTimer.current = window.setTimeout(settle, 140);
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      const pixels = event.deltaY * (event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? track.clientHeight : 1);
+      const direction = Math.sign(pixels);
+      if (!direction) return;
+      const now = performance.now();
+      const burst = wheelBurst.current;
+      if (now - burst.lastTime > 220 || burst.direction !== direction) {
+        burst.carry = 0;
+        burst.count = 0;
+      }
+      burst.lastTime = now;
+      burst.direction = direction;
+      burst.count += 1;
+      // A mouse-wheel notch is one month. Smaller trackpad deltas combine
+      // until they represent a deliberate month step.
+      if (Math.abs(pixels) >= 80) {
+        burst.carry = 0;
+      } else {
+        burst.carry += pixels;
+        if (Math.abs(burst.carry) < 80) return;
+        burst.carry -= direction * 80;
+      }
+      stepMonth(direction, Math.max(65, 170 - (burst.count - 1) * 18));
+    };
+    track.addEventListener("scroll", onScroll, { passive: true });
+    track.addEventListener("scrollend", settle);
+    track.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      track.removeEventListener("scroll", onScroll);
+      track.removeEventListener("scrollend", settle);
+      track.removeEventListener("wheel", onWheel);
+      if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    };
+  }, [viewport.width, stepMonth]);
+
+  const jumpToToday = () => {
+    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    if (slideFrame.current !== null) window.cancelAnimationFrame(slideFrame.current);
+    slideFrame.current = null;
+    pendingSlide.current = null;
+    buttonAnimating.current = false;
+    if (trackRef.current) trackRef.current.style.scrollSnapType = "";
+    setSelectedDate(today);
+    setActiveMonth(startOfMonthKey(today));
+    if (trackRef.current && viewport.width > 0) trackRef.current.scrollLeft = viewport.width;
+  };
+
+  const stepWithButton = (delta: number) => {
+    const now = performance.now();
+    const burst = pressBurst.current;
+    burst.count = now - burst.lastTime < 260 ? burst.count + 1 : 0;
+    burst.lastTime = now;
+    stepMonth(delta, Math.max(85, 170 - burst.count * 25));
+  };
+
+  const pageWidth = viewport.width || "100%";
+  const previousMonth = React.useRef(activeMonth);
+  const rollDirection = activeMonth >= previousMonth.current ? "left" : "right";
+  React.useEffect(() => {
+    previousMonth.current = activeMonth;
+  }, [activeMonth]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col p-3 sm:p-4">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b px-2 pb-3 pt-1 sm:px-3">
+        <h2 className="min-w-0 overflow-hidden"><RollingText value={formatMonth(activeMonth)} direction={rollDirection} className="text-xl font-semibold tracking-tight sm:text-2xl" /></h2>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button variant="outline" size="icon-sm" title="Previous month" aria-label="Previous month" onClick={() => stepWithButton(-1)}><ChevronLeft className="size-4" /></Button>
+          <Button variant="outline" size="sm" title="Jump to today" onClick={jumpToToday}>Today</Button>
+          <Button variant="outline" size="icon-sm" title="Next month" aria-label="Next month" onClick={() => stepWithButton(1)}><ChevronRight className="size-4" /></Button>
+        </div>
+      </header>
+      <div className="grid shrink-0 grid-cols-7 border-b bg-background">
+        {WEEKDAY_LABELS.map((label) => <div key={label} className="py-1 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>)}
+      </div>
+      <div ref={trackRef} aria-label="Calendar months" className="flex w-full min-h-0 min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {months.map((month) => {
+          const pageSize = { width: pageWidth, minWidth: pageWidth, maxWidth: pageWidth };
+          const weekCount = getMonthWeekCount(month);
+          const maxChips = Math.max(1, Math.floor(((viewport.height || 600) / weekCount - CELL_HEADER_HEIGHT) / CHIP_HEIGHT));
+          return (
+            <div
+              key={month}
+              aria-label={formatMonth(month)}
+              className="grid h-full min-w-0 shrink-0 snap-start border-l"
+              style={{ ...pageSize, gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gridTemplateRows: `repeat(${weekCount}, minmax(0, 1fr))` }}
+            >
+              {getMonthPageSlots(month).map((day) => (
+                <DayCell key={day} day={day} activeMonth={month} tasks={tasksByDay.get(day) ?? []} areas={data.areas} today={today} selectedDate={selectedDate} maxChips={maxChips} fitHeight onOpenDay={onOpenDay} onOpenTask={onOpenTask} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function CalendarView(props: CalendarViewProps) {
+  const { calendarNavigation } = usePreferences();
+  return calendarNavigation === "horizontal"
+    ? <HorizontalCalendar {...props} />
+    : <VerticalCalendar {...props} />;
 }
