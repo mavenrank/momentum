@@ -2,7 +2,7 @@ import type { ViewMode } from "@/types/planner";
 
 export type AppRoute = { kind: ViewMode } | { kind: "task"; taskId: string };
 
-const destinations: ViewMode[] = ["planner", "tasks", "calendar", "habits", "pursuits", "settings"];
+const destinations: ViewMode[] = ["planner", "tasks", "calendar", "pursuits", "settings"];
 
 export function routeFromPath(pathname: string): AppRoute {
   const parts = pathname.split("/").filter(Boolean);

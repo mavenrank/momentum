@@ -2,7 +2,6 @@ export type ViewMode =
   | "planner"
   | "tasks"
   | "calendar"
-  | "habits"
   | "pursuits"
   | "settings";
 /** The Planner workspace holds the two execution lenses; Calendar is top-level. */

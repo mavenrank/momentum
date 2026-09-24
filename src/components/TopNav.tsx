@@ -1,6 +1,5 @@
 import {
   CalendarDays,
-  ListChecks,
   ListTodo,
   ListFilter,
   Moon,
@@ -19,7 +18,6 @@ const NAV_ITEMS = [
   { id: "planner", label: "Planner", icon: ListTodo },
   { id: "tasks", label: "All tasks", icon: ListFilter },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
-  { id: "habits", label: "Habits", icon: ListChecks },
   { id: "pursuits", label: "Pursuits", icon: Waypoints },
   { id: "settings", label: "Settings", icon: Settings },
 ] satisfies Array<{ id: ViewMode; label: string; icon: typeof Settings }>;

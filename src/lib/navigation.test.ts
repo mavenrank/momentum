@@ -10,5 +10,6 @@ describe("app routes", () => {
   test("falls back safely for unknown and malformed paths", () => {
     expect(routeFromPath("/unknown")).toEqual({ kind: "planner" });
     expect(routeFromPath("/tasks/%ZZ")).toEqual({ kind: "tasks" });
+    expect(routeFromPath("/habits")).toEqual({ kind: "planner" });
   });
 });

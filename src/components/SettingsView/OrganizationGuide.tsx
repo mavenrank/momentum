@@ -50,5 +50,8 @@ export function OrganizationGuide({ data, onOpen }: { data: PlannerData; onOpen:
         <p>The Pursuits workspace retrieves tasks by these stable relationships, even after a label changes.</p>
       </CardContent></Card>
     </div>
+    <p className="rounded-lg border bg-muted/25 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+      <strong className="text-foreground">Habits and Journal are paused.</strong> Their data remains in storage and exports, but their screens are hidden. Both need more focused, polished workflows before they belong in the planner again.
+    </p>
   </div>;
 }

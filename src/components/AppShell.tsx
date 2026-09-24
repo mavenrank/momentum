@@ -2,7 +2,6 @@ import * as React from "react";
 
 import { TopNav } from "./TopNav";
 import { CalendarView } from "./CalendarView/CalendarView";
-import { HabitsView } from "./HabitsView/HabitsView";
 import { PlannerView } from "./PlannerView/PlannerView";
 import { PursuitsView } from "./PursuitsView/PursuitsView";
 import { TaskPage } from "./TasksView/TaskPage";
@@ -102,7 +101,6 @@ export function AppShell() {
             {route.kind === "tasks" ? <TasksView data={planner.data} onOpenTask={openTask} /> : null}
             {route.kind === "task" ? <TaskPage data={planner.data} execute={planner.execute} taskId={route.taskId} onBack={backFromTask} onOpenTask={openTask} onOpenTasks={openTasks} onOpenDay={openDay} /> : null}
             {route.kind === "calendar" ? <CalendarView {...shared} onOpenDay={openDay} onOpenTask={openTask} /> : null}
-            {route.kind === "habits" ? <HabitsView {...shared} /> : null}
             {route.kind === "pursuits" ? <PursuitsView data={planner.data} execute={planner.execute} onOpenTask={openTask} /> : null}
             {route.kind === "settings" ? (
               <SettingsView data={planner.data} execute={planner.execute} replaceData={planner.replaceData} section={settingsSection} onSectionChange={setSettingsSection} />

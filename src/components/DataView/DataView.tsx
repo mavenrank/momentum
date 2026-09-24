@@ -244,9 +244,9 @@ export function DataView({ data, replaceData, embedded = false }: DataViewProps)
               <span className="font-medium">{Object.keys(data.weekly).length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Active habits</span>
+              <span className="text-muted-foreground">Stored habits (hidden)</span>
               <span className="font-medium">
-                {data.habits.filter((habit) => !habit.archived).length}
+                {data.habits.length}
               </span>
             </div>
             <div className="flex justify-between">
