@@ -3,10 +3,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { RollingText } from "@/components/ui/rolling-text";
-import { TaskDetailDialog } from "../PlannerView/TaskDetailDialog";
 import { useCalendarScroller } from "./useCalendarScroller";
 import { getAreaColor } from "@/lib/areas";
-import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import {
   addDays,
   formatMonth,
@@ -41,8 +39,8 @@ const CHIP_HEIGHT = 15;
 const CELL_HEADER_HEIGHT = 32;
 
 interface CalendarViewProps {
+  onOpenTask: (taskId: string) => void;
   data: PlannerData;
-  execute: PlannerCommandExecutor;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   onOpenDay: (date: string) => void;
@@ -169,13 +167,12 @@ const DayCell = React.memo(function DayCell({
 });
 
 export function CalendarView({
+  onOpenTask,
   data,
-  execute,
   selectedDate,
   setSelectedDate,
   onOpenDay,
 }: CalendarViewProps) {
-  const [detailTaskId, setDetailTaskId] = React.useState<string | null>(null);
   const [viewportHeight, setViewportHeight] = React.useState(0);
 
   // Depends only on the window, so it changes on resize and at no other time.
@@ -335,7 +332,7 @@ export function CalendarView({
                   selectedDate={selectedDate}
                   maxChips={maxChips}
                   onOpenDay={onOpenDay}
-                  onOpenTask={setDetailTaskId}
+                  onOpenTask={onOpenTask}
                 />
               );
             })}
@@ -345,18 +342,6 @@ export function CalendarView({
         <div style={{ height: scroller.bottomSpacer }} aria-hidden />
       </div>
 
-      <TaskDetailDialog
-        task={tasks.find((task) => task.id === detailTaskId) ?? null}
-        domains={data.domains}
-        areas={data.areas}
-        pursuits={data.pursuits}
-        allTasks={tasks}
-        onClose={() => setDetailTaskId(null)}
-        onSave={(taskId, patch) =>
-          execute({ type: "task.update", taskId, patch, conflictPolicy: "warn" })
-        }
-        onDelete={(taskId) => execute({ type: "task.delete", taskId })}
-      />
     </div>
   );
 }

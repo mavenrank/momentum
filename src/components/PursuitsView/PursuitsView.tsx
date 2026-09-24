@@ -9,12 +9,11 @@ import { getAreaColor } from "@/lib/areas";
 import { areaPath, sortDomainsForDisplay } from "@/lib/organization";
 import type { PlannerCommandExecutor } from "@/lib/application/commands";
 import { allTasks } from "@/lib/plannerData";
-import type { DailyTask, PlannerData, Pursuit } from "@/types/planner";
-import { TaskDetailDialog } from "../PlannerView/TaskDetailDialog";
+import type { PlannerData, Pursuit } from "@/types/planner";
 
 type Filter = "open" | "all" | "done";
 
-export function PursuitsView({ data, execute }: { data: PlannerData; execute: PlannerCommandExecutor }) {
+export function PursuitsView({ data, execute, onOpenTask }: { data: PlannerData; execute: PlannerCommandExecutor; onOpenTask: (taskId: string) => void }) {
   const { toast } = useToast();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [showAreaTasks, setShowAreaTasks] = React.useState(true);
@@ -26,7 +25,6 @@ export function PursuitsView({ data, execute }: { data: PlannerData; execute: Pl
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<Filter>("open");
   const [showArchived, setShowArchived] = React.useState(false);
-  const [detailId, setDetailId] = React.useState<string | null>(null);
   const tasks = React.useMemo(() => allTasks(data), [data]);
   const domains = sortDomainsForDisplay(data.domains).filter((domain) => showArchived || !domain.archived || domain.id === domainId);
   const domain = domains.find((entry) => entry.id === domainId) ?? domains[0];
@@ -143,7 +141,7 @@ export function PursuitsView({ data, execute }: { data: PlannerData; execute: Pl
                 {(["open", "all", "done"] as const).map((choice) => <Button key={choice} variant={filter === choice ? "default" : "outline"} size="sm" onClick={() => setFilter(choice)}>{choice === "done" ? "Completed" : choice === "open" ? "Open" : "All"}</Button>)}
               </div>
               <div className="max-h-[57vh] space-y-1 overflow-y-auto">
-                {related.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No matching tasks.</p> : related.map((task) => <button key={task.id} type="button" onClick={() => setDetailId(task.id)} className="flex w-full items-start gap-3 rounded-md border px-3 py-2 text-left hover:bg-accent/50">
+                {related.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No matching tasks.</p> : related.map((task) => <button key={task.id} type="button" onClick={() => onOpenTask(task.id)} className="flex w-full items-start gap-3 rounded-md border px-3 py-2 text-left hover:bg-accent/50">
                   <span className="mt-1 size-2 shrink-0 rounded-full" style={{ backgroundColor: getAreaColor(data.areas, task.area) }} />
                   <span className="min-w-0 flex-1"><span className={task.status === "done" ? "text-sm line-through text-muted-foreground" : "text-sm"}>{task.title}</span><span className="block text-xs text-muted-foreground">{areaPath(data, task.area) ?? "No Area"} · created {task.createdAt.slice(0, 10)} · {task.status}</span></span>
                 </button>)}
@@ -153,13 +151,11 @@ export function PursuitsView({ data, execute }: { data: PlannerData; execute: Pl
             <div><p className="text-xs text-muted-foreground">{areaPath(data, area.id)}</p><h2 className="mt-1 text-xl font-semibold tracking-tight">{area.name}</h2><p className="mt-1 text-sm text-muted-foreground">{tasks.filter((task) => task.area === area.id).length} primary · {relatedAreaTasks.length} related · {visiblePursuits.length} Pursuits</p></div>
             <div className="border-t pt-4"><h3 className="text-sm font-medium">Tasks without a Pursuit</h3><p className="mt-1 text-xs text-muted-foreground">Use an Area directly for ongoing responsibilities. Start a Pursuit when a particular effort needs its own timeline.</p></div>
             {!area.archived && !domain?.archived ? <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); if (!newTask.trim()) return; const result = execute({ type: "task.create", input: { title: newTask.trim(), area: area.id } }); if (!result.ok) toast(result.error.message, "error"); else setNewTask(""); }}><Input value={newTask} onChange={(event) => setNewTask(event.target.value)} placeholder="Add a task to this Area" aria-label="New Area task" /><Button type="submit" disabled={!newTask.trim()}><Plus className="size-4" />Add</Button></form> : null}
-            <div className="max-h-[55vh] space-y-1 overflow-y-auto pr-1">{directTasks.length ? directTasks.map((task) => <button key={task.id} type="button" onClick={() => setDetailId(task.id)} className="flex w-full items-start gap-3 rounded-md border px-3 py-2 text-left text-sm hover:bg-accent/50"><span className="mt-1 size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} /><span className="min-w-0 flex-1"><span className={task.status === "done" ? "line-through text-muted-foreground" : ""}>{task.title}</span><span className="block text-xs text-muted-foreground">{task.scheduledDate ?? "Pool"} · {task.status}</span></span></button>) : <div className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">No direct tasks here yet.</div>}</div>
-            {relatedAreaTasks.length ? <div className="border-t pt-4"><h3 className="text-sm font-medium">Related from other Areas</h3><div className="mt-2 max-h-[30vh] space-y-1 overflow-y-auto pr-1">{relatedAreaTasks.map((task) => <button key={task.id} type="button" onClick={() => setDetailId(task.id)} className="block w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-accent/50"><span className={task.status === "done" ? "line-through text-muted-foreground" : ""}>{task.title}</span><span className="block text-xs text-muted-foreground">Primary: {areaPath(data, task.area) ?? data.domains.find((entry) => entry.id === task.domainId)?.name ?? "Unassigned"} · {task.status}</span></button>)}</div></div> : null}
+            <div className="max-h-[55vh] space-y-1 overflow-y-auto pr-1">{directTasks.length ? directTasks.map((task) => <button key={task.id} type="button" onClick={() => onOpenTask(task.id)} className="flex w-full items-start gap-3 rounded-md border px-3 py-2 text-left text-sm hover:bg-accent/50"><span className="mt-1 size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} /><span className="min-w-0 flex-1"><span className={task.status === "done" ? "line-through text-muted-foreground" : ""}>{task.title}</span><span className="block text-xs text-muted-foreground">{task.scheduledDate ?? "Pool"} · {task.status}</span></span></button>) : <div className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">No direct tasks here yet.</div>}</div>
+            {relatedAreaTasks.length ? <div className="border-t pt-4"><h3 className="text-sm font-medium">Related from other Areas</h3><div className="mt-2 max-h-[30vh] space-y-1 overflow-y-auto pr-1">{relatedAreaTasks.map((task) => <button key={task.id} type="button" onClick={() => onOpenTask(task.id)} className="block w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-accent/50"><span className={task.status === "done" ? "line-through text-muted-foreground" : ""}>{task.title}</span><span className="block text-xs text-muted-foreground">Primary: {areaPath(data, task.area) ?? data.domains.find((entry) => entry.id === task.domainId)?.name ?? "Unassigned"} · {task.status}</span></button>)}</div></div> : null}
           </CardContent> : <CardContent className="py-16 text-center text-sm text-muted-foreground">Choose a Domain and Area to begin.</CardContent>}
         </Card>
       </div>
-      <TaskDetailDialog task={tasks.find((task): task is DailyTask => task.id === detailId) ?? null} domains={data.domains} areas={data.areas} pursuits={data.pursuits} allTasks={tasks}
-        onClose={() => setDetailId(null)} onSave={(taskId, patch) => execute({ type: "task.update", taskId, patch })} onDelete={(taskId) => execute({ type: "task.delete", taskId })} />
     </div>
   );
 }

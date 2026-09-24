@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlignLeft, Check, CornerUpLeft, Repeat2 } from "lucide-react";
+import { AlignLeft, ArrowUpRight, Check, CornerUpLeft, Repeat2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTimeOfDay } from "@/lib/date";
 import { getAreaColor } from "@/lib/areas";
@@ -86,6 +86,7 @@ export interface TaskCardProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Inline nudge rendered under the card body — see TaskSuggestion. */
   suggestion?: React.ReactNode;
   onToggleDone?: () => void;
+  onOpenTask?: () => void;
   /** Opens the follow-up composer. Shown bottom-right on hover. */
   onFollowUp?: () => void;
   /** Clears the date and time and sends the task back to the Pool. */
@@ -104,6 +105,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
     onCancelEdit,
     suggestion,
     onToggleDone,
+    onOpenTask,
     onFollowUp,
     onReturnToPool,
     className,
@@ -135,7 +137,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
   // Nothing to pull back when the task is already untriaged and undated.
   const showPullToPool =
     Boolean(onReturnToPool) && (Boolean(task.scheduledDate) || task.status !== "pool");
-  const hasHoverActions = !editing && (Boolean(onFollowUp) || showPullToPool);
+  const hasHoverActions = !editing && (Boolean(onOpenTask) || Boolean(onFollowUp) || showPullToPool);
 
   return (
     <div
@@ -238,8 +240,7 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
               ) : null}
             </div>
 
-            {/* The summary is a single truncated line; the long body only ever
-                appears in the detail dialog. */}
+            {/* The summary is a single truncated line; the full body lives on the task page. */}
             {task.summary && !compact ? (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">{task.summary}</p>
             ) : null}
@@ -278,9 +279,14 @@ export const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(function
         <div
           className={cn(
             "absolute bottom-1 right-1 flex items-center gap-0.5 rounded-md border bg-card/95 px-0.5 py-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity",
-            "group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100",
+            "group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 max-sm:opacity-100",
           )}
         >
+          {onOpenTask ? (
+            <button type="button" aria-label={`Open task: ${task.title}`} title="Open task" onClick={(event) => { event.stopPropagation(); onOpenTask(); }} onDoubleClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} className="flex items-center gap-1 rounded px-1 py-0.5 text-[0.6875rem] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <ArrowUpRight className="size-3" /> Open
+            </button>
+          ) : null}
           {onFollowUp ? (
             <button
               type="button"

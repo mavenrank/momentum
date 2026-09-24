@@ -1,5 +1,6 @@
 export type ViewMode =
   | "planner"
+  | "tasks"
   | "calendar"
   | "habits"
   | "pursuits"

@@ -15,6 +15,27 @@ const context = {
 };
 
 describe("planner commands", () => {
+  test("links related tasks in both directions and removes the link", () => {
+    const first = executePlannerCommand(createEmptyData(), { type: "task.create", input: { title: "First" } }, context);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const second = executePlannerCommand(first.data, { type: "task.create", input: { title: "Second" } }, context);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    const firstId = (first.value as DailyTask).id;
+    const secondId = (second.value as DailyTask).id;
+    const linked = executePlannerCommand(second.data, { type: "task.linkRelated", taskId: firstId, otherTaskId: secondId }, context);
+    expect(linked.ok).toBe(true);
+    if (!linked.ok) return;
+    const linkedTasks = Object.values(linked.data.daily).flatMap((day) => day.tasks);
+    expect(linkedTasks.find((task) => task.id === firstId)?.relationships.related).toEqual([secondId]);
+    expect(linkedTasks.find((task) => task.id === secondId)?.relationships.related).toEqual([firstId]);
+    expect(executePlannerCommand(linked.data, { type: "task.linkRelated", taskId: firstId, otherTaskId: firstId }, context).ok).toBe(false);
+    const unlinked = executePlannerCommand(linked.data, { type: "task.unlinkRelated", taskId: firstId, otherTaskId: secondId }, context);
+    expect(unlinked.ok).toBe(true);
+    if (!unlinked.ok) return;
+    expect(Object.values(unlinked.data.daily).flatMap((day) => day.tasks).every((task) => task.relationships.related.length === 0)).toBe(true);
+  });
   test("allows duplicate Area and Pursuit names in separate homes", () => {
     const base = createEmptyData();
     const work = base.domains.find((domain) => domain.name === "Work")!;

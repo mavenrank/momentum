@@ -14,6 +14,7 @@ interface PlannerViewProps {
   lens: PlannerLens;
   setLens: (lens: PlannerLens) => void;
   onOpenDay: (date: string) => void;
+  onOpenTask: (taskId: string) => void;
 }
 
 export function PlannerView({
@@ -24,6 +25,7 @@ export function PlannerView({
   lens,
   setLens,
   onOpenDay,
+  onOpenTask,
 }: PlannerViewProps) {
   const actions = usePlannerActions(execute);
   const preferences = usePreferences();
@@ -56,6 +58,7 @@ export function PlannerView({
           lensControl={lensControl}
           timeBlocking={timeBlocking}
           onTimeBlockingChange={(on) => setTimeBlocking("today", on)}
+          onOpenTask={onOpenTask}
         />
       ) : (
         <WeekView
@@ -65,6 +68,7 @@ export function PlannerView({
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
           onOpenDay={onOpenDay}
+          onOpenTask={onOpenTask}
           lensControl={lensControl}
           timeBlocking={timeBlocking}
           onTimeBlockingChange={(on) => setTimeBlocking("week", on)}

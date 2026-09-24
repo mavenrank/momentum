@@ -45,7 +45,10 @@ export function ContextMenu({ position, onClose, children, className }: ContextM
       return;
     }
 
-    const { width, height } = menu.getBoundingClientRect();
+    // The opening zoom transforms getBoundingClientRect(), making the menu
+    // appear smaller for one frame and allowing its footer below the viewport.
+    const width = menu.offsetWidth;
+    const height = menu.offsetHeight;
     const maxX = window.innerWidth - width - VIEWPORT_MARGIN;
     const maxY = window.innerHeight - height - VIEWPORT_MARGIN;
 
@@ -74,16 +77,22 @@ export function ContextMenu({ position, onClose, children, className }: ContextM
     }
 
     // Scrolling the board would leave the menu stranded beside the wrong card.
+    // Scroll events from the menu's own lists also reach this capture listener.
+    function onScroll(event: Event) {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      onClose();
+    }
+
     window.addEventListener("pointerdown", onPointerDown, true);
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("resize", onClose);
-    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("scroll", onScroll, true);
 
     return () => {
       window.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("resize", onClose);
-      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [position, onClose]);
 
@@ -111,7 +120,7 @@ export function ContextMenu({ position, onClose, children, className }: ContextM
         visibility: placed ? "visible" : "hidden",
       }}
       className={cn(
-        "fixed z-50 max-h-[80vh] w-56 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95",
+        "fixed z-50 flex max-h-[80vh] w-56 flex-col overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95",
         className,
       )}
     >

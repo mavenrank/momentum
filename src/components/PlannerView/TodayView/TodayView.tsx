@@ -23,7 +23,6 @@ import { TaskCard, type TaskCardProps } from "../TaskCard";
 import { FollowUpPrompt } from "../FollowUpPrompt";
 import { TaskContextMenu, useTaskContextMenu } from "../TaskContextMenu";
 import type { TaskMenuActions } from "../TaskContextMenu";
-import { TaskDetailDialog } from "../TaskDetailDialog";
 import { TaskSuggestion } from "../TaskSuggestion";
 import { computeDayWindow, TimeBlockGrid, type TimeBlockColumn } from "../TimeBlockGrid";
 import { blockTask, resolveTimeBlockDrop } from "../timeBlockDnd";
@@ -49,6 +48,7 @@ interface TodayViewProps {
   lensControl?: React.ReactNode;
   timeBlocking: boolean;
   onTimeBlockingChange: (on: boolean) => void;
+  onOpenTask: (taskId: string) => void;
 }
 
 interface Column extends TimeBlockColumn {
@@ -82,12 +82,12 @@ export function TodayView({
   lensControl,
   timeBlocking,
   onTimeBlockingChange,
+  onOpenTask,
 }: TodayViewProps) {
   const { toast } = useToast();
   const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null);
   const [followUpFor, setFollowUpFor] = React.useState<DailyTask | null>(null);
-  const [detailTaskId, setDetailTaskId] = React.useState<string | null>(null);
   const [slide, setSlide] = React.useState<"left" | "right" | null>(null);
   const [poolCollapsed, setPoolCollapsed] = React.useState(false);
   const [draggingTask, setDraggingTask] = React.useState<DailyTask | null>(null);
@@ -233,8 +233,8 @@ export function TodayView({
     }
   }
 
-  function deleteTask(task: DailyTask) {
-    if (!window.confirm(`Delete “${task.title}”?`)) {
+  function deleteTask(task: DailyTask, fromMenu = false) {
+    if (!fromMenu && !window.confirm(`Delete “${task.title}”?`)) {
       return;
     }
     const index = flatTasks.findIndex((entry) => entry.id === task.id);
@@ -249,7 +249,7 @@ export function TodayView({
         event.preventDefault();
         // Alt+Enter opens the full editor, where the long description lives.
         if (event.altKey) {
-          setDetailTaskId(task.id);
+          onOpenTask(task.id);
         } else {
           setEditingTaskId(task.id);
         }
@@ -292,7 +292,7 @@ export function TodayView({
   }
 
   const menuActions: TaskMenuActions = {
-    openDetails: setDetailTaskId,
+    openDetails: onOpenTask,
     toggleDone: actions.toggleDone,
     setPriority: (taskId, priority) => actions.patchTask(taskId, { priority }),
     setArea: (taskId, area) => actions.patchTask(taskId, { area }),
@@ -302,7 +302,7 @@ export function TodayView({
     setAllDay: (taskId) => actions.patchTask(taskId, { allDay: true, timeOfDay: undefined }),
     followUp: setFollowUpFor,
     returnToPool,
-    remove: deleteTask,
+    remove: (task) => deleteTask(task, true),
   };
 
   /* ----------------------------------------------------------------- dnd -- */
@@ -365,7 +365,7 @@ export function TodayView({
         editing={editingTaskId === task.id}
         onFocus={() => setSelectedTaskId(task.id)}
         onKeyDown={(event) => handleTaskKeyDown(event, task)}
-        onDoubleClick={() => setDetailTaskId(task.id)}
+        onDoubleClick={() => onOpenTask(task.id)}
         onContextMenu={(event) => menu.open(event, task.id)}
         onCommitTitle={(title) => {
           if (title.trim()) {
@@ -379,6 +379,7 @@ export function TodayView({
           focusTask(task.id);
         }}
         onToggleDone={() => actions.toggleDone(task.id)}
+        onOpenTask={() => onOpenTask(task.id)}
         onFollowUp={() => setFollowUpFor(task)}
         onReturnToPool={() => returnToPool(task.id)}
         suggestion={
@@ -492,7 +493,7 @@ export function TodayView({
                 selectedTaskId={selectedTaskId}
                 dropPreview={dropPreview}
                 onSelect={setSelectedTaskId}
-                onOpenDetail={setDetailTaskId}
+                onOpenDetail={onOpenTask}
                 onToggleDone={actions.toggleDone}
                 onContextMenu={menu.open}
                 onResize={(taskId, start, end) =>
@@ -589,17 +590,6 @@ export function TodayView({
           ) : null}
         </div>
 
-        <TaskDetailDialog
-          task={flatAllTasks.find((task) => task.id === detailTaskId) ?? null}
-          domains={data.domains}
-          areas={data.areas}
-          pursuits={data.pursuits}
-          allTasks={flatAllTasks}
-          onClose={() => setDetailTaskId(null)}
-          onSave={(taskId, patch) => actions.patchTask(taskId, patch)}
-          onDelete={(taskId) => actions.removeTask(taskId)}
-        />
-
         <FollowUpPrompt
           task={followUpFor}
           onClose={() => setFollowUpFor(null)}
@@ -616,6 +606,7 @@ export function TodayView({
           task={flatAllTasks.find((task) => task.id === menu.taskId) ?? null}
           position={menu.position}
           areas={data.areas}
+          domains={data.domains}
           actions={menuActions}
           onClose={menu.close}
         />

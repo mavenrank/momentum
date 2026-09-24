@@ -72,6 +72,8 @@ export type PlannerCommand =
   | { type: "task.create"; input: NewTaskInput; conflictPolicy?: ConflictPolicy }
   | { type: "task.update"; taskId: string; patch: TaskPatch; conflictPolicy?: ConflictPolicy }
   | { type: "task.delete"; taskId: string }
+  | { type: "task.linkRelated"; taskId: string; otherTaskId: string }
+  | { type: "task.unlinkRelated"; taskId: string; otherTaskId: string }
   | { type: "task.toggleDone"; taskId: string }
   | { type: "task.schedule"; taskId: string; date?: string; conflictPolicy?: ConflictPolicy }
   | { type: "task.returnToPool"; taskId: string }
@@ -378,6 +380,21 @@ export function executePlannerCommand(
         return failure(data, "TASK_NOT_FOUND", `Task not found: ${command.taskId}.`);
       }
       return success(touch(deleteTask(data, command.taskId), now), { taskId: command.taskId });
+    }
+
+    case "task.linkRelated":
+    case "task.unlinkRelated": {
+      const first = findTask(data, command.taskId);
+      const second = findTask(data, command.otherTaskId);
+      if (!first || !second) return failure(data, "TASK_NOT_FOUND", "Both tasks must exist to change a link.");
+      if (first.id === second.id) return failure(data, "INVALID_TASK", "A task cannot be related to itself.");
+      const linking = command.type === "task.linkRelated";
+      const related = (task: DailyTask, otherId: string) => linking
+        ? [...new Set([...task.relationships.related, otherId])]
+        : task.relationships.related.filter((id) => id !== otherId);
+      const withFirst = updateTask(data, first.id, { relationships: { ...first.relationships, related: related(first, second.id) } }, now);
+      const next = updateTask(withFirst, second.id, { relationships: { ...second.relationships, related: related(second, first.id) } }, now);
+      return success(touch(next, now), { taskId: first.id, otherTaskId: second.id });
     }
 
     case "task.toggleDone": {

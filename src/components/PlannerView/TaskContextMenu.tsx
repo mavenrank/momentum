@@ -20,7 +20,7 @@ import {
 import { getAreaColor } from "@/lib/areas";
 import { addDays, toDateKey } from "@/lib/date";
 import { PRIORITY_LABELS, TASK_PRIORITIES } from "@/types/planner";
-import type { Area, DailyTask, TaskPriority } from "@/types/planner";
+import type { Area, DailyTask, Domain, TaskPriority } from "@/types/planner";
 
 /** Time presets offered in the schedule section, in 24h form. */
 const TIME_PRESETS = ["09:00", "12:00", "15:00", "18:00"];
@@ -42,6 +42,7 @@ interface TaskContextMenuProps {
   task: DailyTask | null;
   position: ContextMenuPosition | null;
   areas: Area[];
+  domains: Domain[];
   actions: TaskMenuActions;
   onClose: () => void;
 }
@@ -55,9 +56,19 @@ export function TaskContextMenu({
   task,
   position,
   areas,
+  domains,
   actions,
   onClose,
 }: TaskContextMenuProps) {
+  const [confirming, setConfirming] = React.useState<"pool" | "delete" | null>(null);
+
+  React.useEffect(() => setConfirming(null), [task?.id, position]);
+  React.useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
+
   if (!task) {
     return null;
   }
@@ -70,7 +81,13 @@ export function TaskContextMenu({
   /** Runs an action and closes — every item here is a one-shot command. */
   function run(action: () => void) {
     action();
+    setConfirming(null);
     onClose();
+  }
+
+  function confirm(action: "pool" | "delete", callback: () => void) {
+    if (confirming === action) run(callback);
+    else setConfirming(action);
   }
 
   return (
@@ -78,6 +95,7 @@ export function TaskContextMenu({
       <div className="truncate px-2 pb-1 pt-1 text-xs font-medium">{task.title}</div>
       <div className="px-2 pb-1 font-mono text-[0.6875rem] text-muted-foreground">{task.id}</div>
 
+      <div className="shrink-0">
       <ContextMenuSeparator />
 
       <ContextMenuItem onClick={() => run(() => actions.openDetails(task.id))}>
@@ -93,6 +111,9 @@ export function TaskContextMenu({
       </ContextMenuItem>
 
       <ContextMenuSeparator />
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
 
       <ContextMenuLabel>Priority</ContextMenuLabel>
       <ContextMenuChips>
@@ -117,22 +138,29 @@ export function TaskContextMenu({
       <ContextMenuChips className="max-h-24 overflow-y-auto">
         {areas
           .filter((area) => !area.archived)
-          .map((area) => (
-            <ContextMenuChip
-              key={area.id}
-              active={task.area === area.id}
-              onClick={() =>
-                run(() => actions.setArea(task.id, task.area === area.id ? undefined : area.id))
-              }
-            >
-              <span
-                aria-hidden
-                className="mr-1 inline-block size-1.5 rounded-full align-middle"
-                style={{ backgroundColor: getAreaColor(areas, area.id) }}
-              />
-              {area.name}
-            </ContextMenuChip>
-          ))}
+          .map((area) => {
+            const domain = domains.find((entry) => entry.id === area.domainId);
+            const ambiguous = areas.some((entry) =>
+              entry.id !== area.id && entry.name.toLowerCase() === area.name.toLowerCase(),
+            );
+            return (
+              <ContextMenuChip
+                key={area.id}
+                active={task.area === area.id}
+                title={domain ? `${domain.name} / ${area.name}` : area.name}
+                onClick={() =>
+                  run(() => actions.setArea(task.id, task.area === area.id ? undefined : area.id))
+                }
+              >
+                <span
+                  aria-hidden
+                  className="mr-1 inline-block size-1.5 rounded-full align-middle"
+                  style={{ backgroundColor: getAreaColor(areas, area.id) }}
+                />
+                {ambiguous && domain ? `${domain.name} · ` : ""}{area.name}
+              </ContextMenuChip>
+            );
+          })}
       </ContextMenuChips>
 
       <ContextMenuSeparator />
@@ -191,7 +219,9 @@ export function TaskContextMenu({
         ) : null}
       </ContextMenuChips>
 
-      <ContextMenuSeparator />
+      </div>
+
+      <div className="shrink-0 border-t border-border pt-1">
 
       <ContextMenuItem onClick={() => run(() => actions.followUp(task))}>
         <Repeat2 className="size-3.5" />
@@ -199,18 +229,19 @@ export function TaskContextMenu({
       </ContextMenuItem>
 
       {canReturnToPool ? (
-        <ContextMenuItem onClick={() => run(() => actions.returnToPool(task.id))}>
+        <ContextMenuItem onClick={() => confirm("pool", () => actions.returnToPool(task.id))} onBlur={() => setConfirming((current) => current === "pool" ? null : current)}>
           <CornerUpLeft className="size-3.5" />
-          Pull to Pool
+          {confirming === "pool" ? "Sure? Pull to Pool" : "Pull to Pool"}
         </ContextMenuItem>
       ) : null}
 
       <ContextMenuSeparator />
 
-      <ContextMenuItem destructive onClick={() => run(() => actions.remove(task))}>
+      <ContextMenuItem destructive onClick={() => confirm("delete", () => actions.remove(task))} onBlur={() => setConfirming((current) => current === "delete" ? null : current)}>
         <Trash2 className="size-3.5" />
-        Delete
+        {confirming === "delete" ? "Sure? Delete" : "Delete"}
       </ContextMenuItem>
+      </div>
     </ContextMenu>
   );
 }

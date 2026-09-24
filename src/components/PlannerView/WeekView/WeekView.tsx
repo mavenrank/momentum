@@ -27,7 +27,6 @@ import { PlannerHeader, STEPPER_LABEL_WIDTH } from "../PlannerHeader";
 import { TaskCard } from "../TaskCard";
 import { TaskContextMenu, useTaskContextMenu } from "../TaskContextMenu";
 import type { TaskMenuActions } from "../TaskContextMenu";
-import { TaskDetailDialog } from "../TaskDetailDialog";
 import { FollowUpPrompt } from "../FollowUpPrompt";
 import { computeDayWindow, TimeBlockGrid } from "../TimeBlockGrid";
 import { blockTask, resolveTimeBlockDrop } from "../timeBlockDnd";
@@ -48,6 +47,7 @@ import type { DailyTask, PlannerData } from "@/types/planner";
 import type { PlannerCommandExecutor } from "@/lib/application/commands";
 
 interface WeekViewProps {
+  onOpenTask: (taskId: string) => void;
   data: PlannerData;
   execute: PlannerCommandExecutor;
   actions: PlannerActions;
@@ -101,6 +101,7 @@ function DraggableTask({
       onDoubleClick={() => onOpenDetail(task.id)}
       onContextMenu={(event) => onContextMenu(event, task.id)}
       onToggleDone={() => onToggleDone(task.id)}
+      onOpenTask={() => onOpenDetail(task.id)}
       onFollowUp={() => onFollowUp(task)}
       onReturnToPool={() => onReturnToPool(task.id)}
       className={cn("cursor-grab active:cursor-grabbing", isDragging && "opacity-40")}
@@ -168,6 +169,7 @@ function DayColumn({
 /* ------------------------------------------------------------------ view -- */
 
 export function WeekView({
+  onOpenTask,
   data,
   execute,
   actions,
@@ -183,7 +185,6 @@ export function WeekView({
   const [draggingTask, setDraggingTask] = React.useState<DailyTask | null>(null);
   const [slide, setSlide] = React.useState<"left" | "right" | null>(null);
   const [notesOpen, setNotesOpen] = React.useState(false);
-  const [detailTaskId, setDetailTaskId] = React.useState<string | null>(null);
   const [followUpFor, setFollowUpFor] = React.useState<DailyTask | null>(null);
   const [inboxBucket, setInboxBucket] = React.useState<InboxBucket>("pool");
   const [dropPreview, setDropPreview] = React.useState<{
@@ -322,7 +323,7 @@ export function WeekView({
   const cards: CardHandlers = {
     selectedTaskId,
     onSelect: setSelectedTaskId,
-    onOpenDetail: setDetailTaskId,
+    onOpenDetail: onOpenTask,
     onToggleDone: actions.toggleDone,
     onContextMenu: menu.open,
     onFollowUp: setFollowUpFor,
@@ -330,7 +331,7 @@ export function WeekView({
   };
 
   const menuActions: TaskMenuActions = {
-    openDetails: setDetailTaskId,
+    openDetails: onOpenTask,
     toggleDone: actions.toggleDone,
     setPriority: (taskId, priority) => actions.patchTask(taskId, { priority }),
     setArea: (taskId, area) => actions.patchTask(taskId, { area }),
@@ -339,11 +340,7 @@ export function WeekView({
     setAllDay: (taskId) => actions.patchTask(taskId, { allDay: true, timeOfDay: undefined }),
     followUp: setFollowUpFor,
     returnToPool,
-    remove: (task) => {
-      if (window.confirm(`Delete “${task.title}”?`)) {
-        actions.removeTask(task.id);
-      }
-    },
+    remove: (task) => actions.removeTask(task.id),
   };
 
   return (
@@ -448,7 +445,7 @@ export function WeekView({
                 selectedTaskId={selectedTaskId}
                 dropPreview={dropPreview}
                 onSelect={setSelectedTaskId}
-                onOpenDetail={setDetailTaskId}
+                onOpenDetail={onOpenTask}
                 onToggleDone={actions.toggleDone}
                 onContextMenu={menu.open}
                 onResize={(taskId, start, end) =>
@@ -509,17 +506,6 @@ export function WeekView({
         </Collapsible>
       </div>
 
-      <TaskDetailDialog
-        task={flatAllTasks.find((task) => task.id === detailTaskId) ?? null}
-        domains={data.domains}
-        areas={data.areas}
-        pursuits={data.pursuits}
-        allTasks={flatAllTasks}
-        onClose={() => setDetailTaskId(null)}
-        onSave={(taskId, patch) => actions.patchTask(taskId, patch)}
-        onDelete={(taskId) => actions.removeTask(taskId)}
-      />
-
       <FollowUpPrompt
         task={followUpFor}
         onClose={() => setFollowUpFor(null)}
@@ -536,6 +522,7 @@ export function WeekView({
         task={flatAllTasks.find((task) => task.id === menu.taskId) ?? null}
         position={menu.position}
         areas={data.areas}
+        domains={data.domains}
         actions={menuActions}
         onClose={menu.close}
       />
