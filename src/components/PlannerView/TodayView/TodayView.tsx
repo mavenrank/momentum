@@ -35,7 +35,7 @@ import {
   toDateKey,
 } from "@/lib/date";
 import { poolTasks, unscheduledTasks } from "@/lib/plannerData";
-import { plannerDayLabel, tasksForPlannerDay } from "@/lib/plannerBoard";
+import { plannerDayLabel, plannerWindowDates, tasksForPlannerDay } from "@/lib/plannerBoard";
 import { cn } from "@/lib/utils";
 import type { PlannerActions } from "@/hooks/usePlannerActions";
 import { compareByTiming } from "@/types/planner";
@@ -103,9 +103,7 @@ export function TodayView({
 
   React.useEffect(() => { previousDate.current = selectedDate; }, [selectedDate]);
 
-  const yesterday = addDays(selectedDate, -1);
-  const tomorrow = addDays(selectedDate, 1);
-  const dayAfter = addDays(selectedDate, 2);
+  const [yesterday, , tomorrow] = plannerWindowDates(selectedDate);
   const actualToday = toDateKey(new Date());
 
   const sensors = useSensors(
@@ -134,11 +132,7 @@ export function TodayView({
     [scheduledByDate, yesterday],
   );
 
-  /**
-   * The three columns follow the work: while yesterday still has unfinished
-   * tasks the board looks back so they can be triaged, and the moment it is
-   * clear the board rolls forward to today, tomorrow and the day after.
-   */
+  /** The selected date stays in the center as the three-day window moves. */
   const columns = React.useMemo<Column[]>(() => {
     // All-day commitments head each column, then timed work in clock order.
     const on = (date: string) => [...(scheduledByDate.get(date) ?? [])].sort(compareByTiming);
@@ -150,26 +144,20 @@ export function TodayView({
       tasks: tasksForPlannerDay(scheduledByDate, doingTasks, selectedDate, actualToday).sort(compareByTiming),
     };
 
-    if (leftovers.length > 0) {
-      return [
-        {
-          key: "yesterday",
-          label: plannerDayLabel(yesterday, actualToday),
-          date: yesterday,
-          tasks: [...leftovers].sort(compareByTiming),
-          isLeftover: true,
-        },
-        todayColumn,
-        { key: "tomorrow", label: plannerDayLabel(tomorrow, actualToday), date: tomorrow, tasks: on(tomorrow) },
-      ];
-    }
-
     return [
+      {
+        key: "yesterday",
+        label: plannerDayLabel(yesterday, actualToday),
+        date: yesterday,
+        tasks: selectedDate === actualToday && leftovers.length > 0
+          ? [...leftovers].sort(compareByTiming)
+          : on(yesterday),
+        isLeftover: selectedDate === actualToday && leftovers.length > 0,
+      },
       todayColumn,
       { key: "tomorrow", label: plannerDayLabel(tomorrow, actualToday), date: tomorrow, tasks: on(tomorrow) },
-      { key: "dayAfter", label: plannerDayLabel(dayAfter, actualToday), date: dayAfter, tasks: on(dayAfter) },
     ];
-  }, [scheduledByDate, doingTasks, leftovers, selectedDate, actualToday, yesterday, tomorrow, dayAfter]);
+  }, [scheduledByDate, doingTasks, leftovers, selectedDate, actualToday, yesterday, tomorrow]);
 
   const pool = React.useMemo(() => poolTasks(data), [data]);
   const unscheduled = React.useMemo(() => unscheduledTasks(data), [data]);

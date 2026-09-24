@@ -1,4 +1,10 @@
 import type { DailyTask } from "@/types/planner";
+import { addDays } from "./date";
+
+/** Keep the selected day centered so every arrow click changes the visible window. */
+export function plannerWindowDates(selectedDate: string): [string, string, string] {
+  return [addDays(selectedDate, -1), selectedDate, addDays(selectedDate, 1)];
+}
 
 /** Column labels describe the calendar date, even when the board is browsed. */
 export function plannerDayLabel(date: string, today: string): string {

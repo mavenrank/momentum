@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { plannerDayLabel, tasksForPlannerDay } from "./plannerBoard";
+import { plannerDayLabel, plannerWindowDates, tasksForPlannerDay } from "./plannerBoard";
 import type { DailyTask } from "@/types/planner";
 
 function task(id: string, scheduledDate: string | undefined, status: DailyTask["status"]): DailyTask {
@@ -16,6 +16,11 @@ function task(id: string, scheduledDate: string | undefined, status: DailyTask["
 }
 
 describe("planner day selection", () => {
+  test("one step in either direction changes the three visible dates", () => {
+    expect(plannerWindowDates("2026-09-24")).toEqual(["2026-09-23", "2026-09-24", "2026-09-25"]);
+    expect(plannerWindowDates("2026-09-23")).toEqual(["2026-09-22", "2026-09-23", "2026-09-24"]);
+    expect(plannerWindowDates("2026-09-25")).toEqual(["2026-09-24", "2026-09-25", "2026-09-26"]);
+  });
   const scheduledBefore = task("before", "2026-09-09", "scheduled");
   const doingLater = task("later", "2026-12-05", "doing");
   const doingUndated = task("undated", undefined, "doing");
